@@ -4,11 +4,42 @@ import random
 
 
 class Genome:
-    def __init__(self, input_length, output_length, activation, gen_inn_num):
+    """
+    A genome is an object containing the genetic information of an evolved neural network.
+
+    Each genome can have anywhere between none and several connections between input nodes,
+    hidden nodes, and output nodes.
+
+    Each genome contains a fixed amount of input nodes and output nodes. Hidden nodes can
+    be added at random existing connections.
+
+    Genomes can be mutated to add nodes, add connections, change connection weights, and
+    toggle connection expression.
+
+    Attributes:
+    __input_length (int):      The amount of input nodes
+    __output_length (int):     The amount of output nodes
+    __activation (function):   The activation function used by the genome
+    __inn_num_gen (generator): The innovation number generator used to assign innovation numbers to connections
+    __nodes (list):            The list of nodes in the genome
+    __connections (list):      The list of connections in the genome
+    __node_id_index (int):     A number that is incremented with each new node to ensure id uniqueness
+    """
+
+    def __init__(self, input_length, output_length, activation, inn_num_gen):
+        """
+        Constructor.
+
+        Parameters:
+        input_length (int):      The amount of input nodes
+        output_length (int):     The amount of output nodes
+        activation (function):   The activation function used by the genome
+        inn_num_gen (generator): The innovation number generator used to assign innovation numbers to connections
+        """
         self.input_length = input_length
         self.output_length = output_length
         self.activation = activation
-        self.gen_inn_num = gen_inn_num
+        self.inn_num_gen = inn_num_gen
         self.nodes = []
         self.connections = []
         self.node_id_index = 0
@@ -23,6 +54,12 @@ class Genome:
             self.node_id_index += 1
 
     def __str__(self):
+        """
+        Represent the genome's connection data as a string.
+
+        Returns:
+        str: The genome's connection data
+        """
         network_string = '\n---Connections---\n'
         for c in self.connections:
             network_string += str(c) + '\n'
@@ -34,9 +71,9 @@ class Genome:
         """
         if self.connections_maxxed() is False:
             while True:
-                # Select random nodes to connect
-                rn1 = random.randint(0, len(self.nodes)-1) # The first randomly selected nodes
-                rn2 = rn1                                  # The second randomly selected nodes (not equal to rn1)
+                # Select two random, unequal nodes to connect
+                rn1 = random.randint(0, len(self.nodes)-1)
+                rn2 = rn1
                 while rn2 == rn1:
                     rn2 = random.randint(0, len(self.nodes)-1)
 
@@ -53,10 +90,10 @@ class Genome:
 
                 # Create the connection and add it to the genome
                 if reverse:
-                    inn_num = self.gen_inn_num.send((rn2, rn1))
+                    inn_num = self.inn_num_gen.send((rn2, rn1))
                     conn = Connection(inn_num, rn2, rn1)
                 else:
-                    inn_num = self.gen_inn_num.send((rn1, rn2))
+                    inn_num = self.inn_num_gen.send((rn1, rn2))
                     conn = Connection(inn_num, rn1, rn2)
 
                 # Only add the connection if it doesn't already exist within the genome
@@ -67,7 +104,9 @@ class Genome:
 
     def add_node(self):
         """
-        Randomly adds a hidden node on an existing connection.
+        Randomly adds a hidden node onto an existing connection.
+
+        The existing connection is disabled and two new connections are added in its place.
         """
         # Create the node
         self.nodes.append(Node(self.node_id_index, 'hidden'))
@@ -77,8 +116,8 @@ class Genome:
         rand_conn.disable()
 
         # Create new connections to add in place of the randomly selected connection
-        conn_id_1 = self.gen_inn_num.send((self.node_id_index, rand_conn.get_out_node()))
-        conn_id_2 = self.gen_inn_num.send((rand_conn.get_in_node(), self.node_id_index))
+        conn_id_1 = self.inn_num_gen.send((self.node_id_index, rand_conn.get_out_node()))
+        conn_id_2 = self.inn_num_gen.send((rand_conn.get_in_node(), self.node_id_index))
         self.connections.append(Connection(conn_id_1, self.node_id_index, rand_conn.get_out_node(), weight=rand_conn.get_weight()))
         self.connections.append(Connection(conn_id_2, rand_conn.get_in_node(), self.node_id_index, weight=1.0))
         self.node_id_index += 1
@@ -87,7 +126,17 @@ class Genome:
     def evaluate(self, inputs):
         """
         Evaluate the neural network (genome) and return the outputs.
+
+        Parameters:
+        inputs (list): A list of input floats of length equal to the amount of input nodes
+
+        Returns:
+        list: A list of output floats between of length equal to the amount of output nodes
         """
+        if len(inputs) != self.input_length:
+            raise InputError('Invalid input!  Amount required: {0}  Amount given: {1}'.format(self.input_length, len(inputs)))
+            return None
+
         # Enter the inputs and reset all non-inputs to zero
         input_index = 0
         for i in range(len(self.nodes)):
@@ -126,6 +175,12 @@ class Genome:
             i += 1
 
     def connections_maxxed(self):
+        """
+        Returns true if there are no possible places for new connections that are not already filled.
+
+        Returns:
+        bool: True if there are no possible places for new connections that are not already filled
+        """
         input_amt = self.input_length
         output_amt = self.output_length
         hidden_amt = len(self.nodes) - self.input_length - self.output_length
@@ -141,8 +196,20 @@ class Genome:
 class Node:
     """
     A node gene in the genome.
+
+    Attributes:
+    __id (int):      The node's id number within the genome
+    __type (str):    The type of node ('input', 'output', or 'hidden')
+    __value (float): The current value contained in the node (the input for input nodes, the output for output nodes, or the placeholder value for hidden nodes)
     """
     def __init__(self, id, type):
+        """
+        Constructor.
+
+        Parameters:
+        id (int):      The node's id number within the genome
+        type (str):    The type of node ('input', 'output', or 'hidden')
+        """
         self.__id = id
         self.__type = type
         self.__value = 0.0
@@ -159,9 +226,24 @@ class Node:
 class Connection:
     """
     A connection gene as part of the Genome.
+
+    Attributes:
+    __innovation_number (int): The unique number associated with this connection gene that can be linked to other equal connections
+    __in_node (int):           The id of the input node for the connection
+    __out_node (int):          The id of the output node for the connection
+    __weight (float):          The weight of the connection
+    __expressed (bool):        Whether the connection is enabled or disabled
     """
     def __init__(self, innovation_number, in_node, out_node, weight=None, expressed=True):
         """
+        Constructor.
+
+        Parameters:
+        innovation_number (int): The unique number associated with this connection gene that can be linked to other equal connections
+        in_node (int):           The id of the input node for the connection
+        out_node (int):          The id of the output node for the connection
+        weight (float):          The weight of the connection
+        expressed (bool):        Whether the connection is enabled or disabled
         """
         self.__innovation_number = innovation_number
         self.__in_node = in_node
@@ -203,6 +285,11 @@ class Connection:
 def relu(x): return max(0, x)
 
 def innovation_number_generator():
+    """
+    A generator that given the in node and out node of a connection as a tuple through the send function,
+    yields a unique innovation number for that connection.  If the connection already exists within the
+    ecosystem, the existing innovation number is yielded.
+    """
     inn_log = []
     inn_num = 0
     while True:
@@ -217,9 +304,9 @@ def innovation_number_generator():
 
 # Testing
 if __name__ == '__main__':
-    gen_inn_num = innovation_number_generator()
-    gen_inn_num.send(None)
-    g = Genome(3, 2, relu, gen_inn_num)
+    inn_num_gen = innovation_number_generator()
+    inn_num_gen.send(None)
+    g = Genome(3, 2, relu, inn_num_gen)
     g.add_connection()
     g.add_connection()
     g.add_connection()
