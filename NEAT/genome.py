@@ -54,20 +54,25 @@ class Genome:
 
     def __str__(self):
         """
-        Represent the genome's connection data as a string.
+        Represent the genome's node and connection data as a string.
 
         Returns:
         str: The genome's connection data
         """
-        network_string = '\n---Connections---\n'
+        self.nodes.sort(key=lambda n: n.get_id())
+        self.connections.sort(key=lambda c: c.get_innovation_number())
+        genome_string = '\n-------------Nodes-------------\n'
+        for n in self.nodes:
+            genome_string += str(n) + '\n'
+        genome_string += '\n----------Connections----------\n'
         for c in self.connections:
-            network_string += str(c) + '\n'
-        return network_string
-    
+            genome_string += str(c) + '\n'
+        return genome_string
+
     def add_connection(self, node1, node2, weight=None):
         """
         Adds a connection between node1 and node2.
-        
+
         Parameters:
         node1 (int): The id of the first node
         node2 (int): The id of the second node
@@ -94,13 +99,13 @@ class Genome:
         # Only add the connection if it doesn't already exist within the genome
         if conn not in self.connections:
             self.connections.append(conn)
-        
+
     def add_node(self, innovation_number):
         """
         Adds a hidden node onto an existing connection with the given innovation number.
 
         The existing connection is disabled and two new connections are added in its place.
-        
+
         Parameters:
         innovation_number (int): The innovation number of the connection to add the node to
         """
@@ -269,6 +274,9 @@ class Node:
         self.__id_num = id_num
         self.__node_type = node_type
         self.__value = 0.0
+
+    def __str__(self):
+        return '{0}: {1:6s} {2}'.format(self.__id_num, self.__node_type, self.__value)
 
     def get_id(self): return self.__id_num
 
