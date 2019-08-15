@@ -63,62 +63,84 @@ class Genome:
         for c in self.connections:
             network_string += str(c) + '\n'
         return network_string
-
-    def add_connection(self):
+    
+    def add_connection(self, node1, node2, weight=None):
         """
-        Randomly adds a connection between two existing nodes.
+        Adds a connection between node1 and node2.
+        
+        Parameters:
+        node1 (int): The id of the first node
+        node2 (int): The id of the second node
         """
-        if self.connections_maxxed() is False:
-            while True:
-                # Select two random, unequal nodes to connect
-                rn1 = random.randint(0, len(self.nodes)-1)
-                rn2 = rn1
-                while rn2 == rn1:
-                    rn2 = random.randint(0, len(self.nodes)-1)
+        # Get the types of the random nodes
+        node1_type = self.nodes[node1].get_type()
+        node2_type = self.nodes[node2].get_type()
 
-                # Get the types of the random nodes
-                rn1_type = self.nodes[rn1].get_type()
-                rn2_type = self.nodes[rn2].get_type()
+        # Don't allow outputs to connect to outputs and inputs to inputs
+        if node1_type == node2_type == 'input' or node1_type == node2_type == 'output':
+            raise GenomeError('Invalid connection! Cannot connect nodes of type {0} and {1}!'.format(node1_type, node2_type))
 
-                # Don't allow outputs to connect to outputs and inputs to inputs
-                if rn1_type == rn2_type == 'input' or rn1_type == rn2_type == 'output':
-                    continue
+        # Check if the order of the randomly selected nodes should be reversed
+        reverse = (node1_type == 'hidden' and node2_type == 'input') or (node1_type == 'output' and node2_type == 'hidden') or (node1_type == 'output' and node2_type == 'input')
 
-                # Check if the order of the randomly selected nodes should be reversed
-                reverse = (rn1_type == 'hidden' and rn2_type == 'input') or (rn1_type == 'output' and rn2_type == 'hidden') or (rn1_type == 'output' and rn2_type == 'input')
+        # Create the connection and add it to the genome
+        if reverse:
+            inn_num = self.inn_num_gen.send((node2, node1))
+            conn = Connection(inn_num, node2, node1, weight=weight)
+        else:
+            inn_num = self.inn_num_gen.send((node1, node2))
+            conn = Connection(inn_num, node1, node2, weight=weight)
 
-                # Create the connection and add it to the genome
-                if reverse:
-                    inn_num = self.inn_num_gen.send((rn2, rn1))
-                    conn = Connection(inn_num, rn2, rn1)
-                else:
-                    inn_num = self.inn_num_gen.send((rn1, rn2))
-                    conn = Connection(inn_num, rn1, rn2)
-
-                # Only add the connection if it doesn't already exist within the genome
-                if conn not in self.connections:
-                    self.connections.append(conn)
-                    break
-
-    def add_node(self):
+        # Only add the connection if it doesn't already exist within the genome
+        if conn not in self.connections:
+            self.connections.append(conn)
+        
+    def add_node(self, innovation_number):
         """
-        Randomly adds a hidden node onto an existing connection.
+        Adds a hidden node onto an existing connection with the given innovation number.
 
         The existing connection is disabled and two new connections are added in its place.
+        
+        Parameters:
+        innovation_number (int): The innovation number of the connection to add the node to
         """
+        # Find the connection to add the node to and disable it
+        conn_index = None
+        for i in range(len(self.connections)):
+            if self.connections[i].get_innovation_number() == innovation_number:
+                conn_index = i
+                break
+        if conn_index is None:
+            raise GenomeError('Connection with innovation number {0} does not exist within genome!'.format(innovation_number))
+        conn = self.connections[conn_index]
+        conn.disable()
+
         # Create the node
         self.nodes.append(Node(self.node_id_index, 'hidden'))
 
-        # Select a random connection to add the node to and disable it
-        rand_conn = self.connections[random.randint(0, len(self.connections)-1)]
-        rand_conn.disable()
-
-        # Create new connections to add in place of the randomly selected connection
-        conn_id_1 = self.inn_num_gen.send((self.node_id_index, rand_conn.get_out_node()))
-        conn_id_2 = self.inn_num_gen.send((rand_conn.get_in_node(), self.node_id_index))
-        self.connections.append(Connection(conn_id_1, self.node_id_index, rand_conn.get_out_node(), weight=rand_conn.get_weight()))
-        self.connections.append(Connection(conn_id_2, rand_conn.get_in_node(), self.node_id_index, weight=1.0))
+        # Create new connections to add in place of the disabled connection
+        conn_id_1 = self.inn_num_gen.send((self.node_id_index, conn.get_out_node()))
+        conn_id_2 = self.inn_num_gen.send((conn.get_in_node(), self.node_id_index))
+        self.connections.append(Connection(conn_id_1, self.node_id_index, conn.get_out_node(), weight=conn.get_weight()))
+        self.connections.append(Connection(conn_id_2, conn.get_in_node(), self.node_id_index, weight=1.0))
         self.node_id_index += 1
+
+    def connections_at_max(self):
+        """
+        Returns true if there are no possible places for new connections that are not already filled.
+
+        Returns:
+        bool: True if there are no possible places for new connections that are not already filled
+        """
+        input_amt = self.input_length
+        output_amt = self.output_length
+        hidden_amt = len(self.nodes) - self.input_length - self.output_length
+
+        if hidden_amt == 0:
+            at_max = len(self.connections) == input_amt * output_amt
+        else:
+            at_max = len(self.connections) == (input_amt * output_amt) + (input_amt * hidden_amt) + (hidden_amt * output_amt) + (hidden_amt - 1)
+        return at_max
 
     def evaluate(self, inputs):
         """
@@ -131,7 +153,7 @@ class Genome:
         list: A list of output floats between of length equal to the amount of output nodes
         """
         if len(inputs) != self.input_length:
-            raise Exception('Invalid input!  Amount required: {0}  Amount given: {1}'.format(self.input_length, len(inputs)))
+            raise ValueError('Invalid input!  Amount required: {0}  Amount given: {1}'.format(self.input_length, len(inputs)))
 
         # Enter the inputs and reset all non-inputs to zero
         input_index = 0
@@ -153,6 +175,62 @@ class Genome:
         # Return the outputs
         return [node.get_value() for node in self.nodes if node.get_type() == 'output']
 
+    def mutate_add_connection(self):
+        """
+        Randomly adds a connection between two existing nodes.
+        """
+        if self.connections_at_max() is False:
+            while True:
+                # Select two random, unequal nodes to connect
+                node1 = random.randint(0, len(self.nodes)-1)
+                node2 = node1
+                while node2 == node1:
+                    node2 = random.randint(0, len(self.nodes)-1)
+
+                # Get the types of the random nodes
+                node1_type = self.nodes[node1].get_type()
+                node2_type = self.nodes[node2].get_type()
+
+                # Don't allow outputs to connect to outputs and inputs to inputs
+                if node1_type == node2_type == 'input' or node1_type == node2_type == 'output':
+                    continue
+
+                # Check if the order of the randomly selected nodes should be reversed
+                reverse = (node1_type == 'hidden' and node2_type == 'input') or (node1_type == 'output' and node2_type == 'hidden') or (node1_type == 'output' and node2_type == 'input')
+
+                # Create the connection and add it to the genome
+                if reverse:
+                    inn_num = self.inn_num_gen.send((node2, node1))
+                    conn = Connection(inn_num, node2, node1)
+                else:
+                    inn_num = self.inn_num_gen.send((node1, node2))
+                    conn = Connection(inn_num, node1, node2)
+
+                # Only add the connection if it doesn't already exist within the genome
+                if conn not in self.connections:
+                    self.connections.append(conn)
+                    break
+
+    def mutate_add_node(self):
+        """
+        Randomly adds a hidden node onto an existing connection.
+
+        The existing connection is disabled and two new connections are added in its place.
+        """
+        # Create the node
+        self.nodes.append(Node(self.node_id_index, 'hidden'))
+
+        # Select a random connection to add the node to and disable it
+        rand_conn = self.connections[random.randint(0, len(self.connections)-1)]
+        rand_conn.disable()
+
+        # Create new connections to add in place of the randomly selected connection
+        conn_id_1 = self.inn_num_gen.send((self.node_id_index, rand_conn.get_out_node()))
+        conn_id_2 = self.inn_num_gen.send((rand_conn.get_in_node(), self.node_id_index))
+        self.connections.append(Connection(conn_id_1, self.node_id_index, rand_conn.get_out_node(), weight=rand_conn.get_weight()))
+        self.connections.append(Connection(conn_id_2, rand_conn.get_in_node(), self.node_id_index, weight=1.0))
+        self.node_id_index += 1
+
     def sort_connections(self):
         """
         Sorts the connections to be in feed-forward order.
@@ -169,23 +247,6 @@ class Genome:
                 else:
                     j += 1
             i += 1
-
-    def connections_maxxed(self):
-        """
-        Returns true if there are no possible places for new connections that are not already filled.
-
-        Returns:
-        bool: True if there are no possible places for new connections that are not already filled
-        """
-        input_amt = self.input_length
-        output_amt = self.output_length
-        hidden_amt = len(self.nodes) - self.input_length - self.output_length
-
-        if hidden_amt == 0:
-            maxxed = len(self.connections) == input_amt * output_amt
-        else:
-            maxxed = len(self.connections) == (input_amt * output_amt) + (input_amt * hidden_amt) + (hidden_amt * output_amt) + (hidden_amt - 1)
-        return maxxed
 
 
 class Node:
@@ -276,37 +337,6 @@ class Connection:
     def set_weight(self, weight): self.__weight = weight
 
 
-def relu(x): return max(0, x)
-
-
-def innovation_number_generator():
-    """
-    A generator that given the in node and out node of a connection as a tuple through the send function,
-    yields a unique innovation number for that connection.  If the connection already exists within the
-    ecosystem, the existing innovation number is yielded.
-    """
-    inn_log = []
-    inn_num = 0
-    while True:
-        conn = yield inn_num
-        if conn in inn_log:
-            inn_num = inn_log.index(conn)
-        else:
-            inn_log.append(conn)
-            inn_num = len(inn_log) - 1
-
-
-# Testing
-if __name__ == '__main__':
-    inn_num_gen = innovation_number_generator()
-    inn_num_gen.send(None)
-    g = Genome(3, 2, relu, inn_num_gen)
-    g.add_connection()
-    g.add_connection()
-    g.add_connection()
-    g.add_node()
-    g.add_connection()
-    g.add_connection()
-
-    print(g)
-    print(g.evaluate([0.5, 0.5, 0.5]))
+class GenomeError(Exception):
+    def __init__(self, message):
+        self.message = message
