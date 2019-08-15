@@ -1,16 +1,17 @@
 
 import unittest
 
-from NEAT.genome import Genome, Node, Connection, GenomeError
-from NEAT.ecosystem import innovation_number_generator
-from activations import relu
+from genome import Genome, Node, Connection, GenomeError
+from ecosystem import innovation_number_generator
 
 
 class TestGenome(unittest.TestCase):
+    relu = lambda self, x: max(0, x)
+
     def test_constructor(self):
         input_length = 2
         output_length = 2
-        activation = relu
+        activation = self.relu
         inn_num_gen = innovation_number_generator()
         inn_num_gen.send(None)
 
@@ -28,7 +29,7 @@ class TestGenome(unittest.TestCase):
     def test__add_connection(self):
         inn_num_gen = innovation_number_generator()
         inn_num_gen.send(None)
-        g = Genome(2, 2, relu, inn_num_gen)
+        g = Genome(2, 2, self.relu, inn_num_gen)
 
         # Test connecting input and output nodes
         g.add_connection(0, 2)
@@ -89,7 +90,7 @@ class TestGenome(unittest.TestCase):
     def test_add_node(self):
         inn_num_gen = innovation_number_generator()
         inn_num_gen.send(None)
-        g = Genome(1, 1, relu, inn_num_gen)
+        g = Genome(1, 1, self.relu, inn_num_gen)
 
         g.add_connection(0, 1)
         g.add_node(0)
@@ -102,6 +103,76 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(g.connections[0].get_weight(), g.connections[1].get_weight())
         self.assertEqual(g.connections[2].get_weight(), 1.0)
         self.assertEqual(g.node_id_index, 3)
+
+        g.add_node(1)
+
+        self.assertEqual(len(g.nodes), 4)
+        self.assertEqual(len(g.connections), 5)
+        self.assertFalse(g.connections[1].is_expressed())
+        self.assertTrue(g.connections[3].is_expressed())
+        self.assertTrue(g.connections[4].is_expressed())
+        self.assertEqual(g.connections[1].get_weight(), g.connections[3].get_weight())
+        self.assertEqual(g.connections[4].get_weight(), 1.0)
+        self.assertEqual(g.node_id_index, 4)
+
+    def test_connections_at_max(self):
+        inn_num_gen = innovation_number_generator()
+        inn_num_gen.send(None)
+        g = Genome(2, 2, self.relu, inn_num_gen)
+
+        # Test with no hidden nodes
+        self.assertFalse(g.connections_at_max())
+        g.add_connection(0, 2)
+        g.add_connection(0, 3)
+        g.add_connection(1, 2)
+        self.assertFalse(g.connections_at_max())
+        g.add_connection(1, 3)
+        self.assertTrue(g.connections_at_max())
+
+        # Test with hidden nodes
+        g.add_node(0)
+        self.assertFalse(g.connections_at_max())
+        g.add_connection(1, 4)
+        g.add_connection(4, 3)
+        self.assertTrue(g.connections_at_max())
+        g.add_node(6)
+        self.assertFalse(g.connections_at_max())
+        g.add_connection(0, 5)
+        g.add_connection(5, 2)
+        g.add_connection(5, 3)
+        self.assertTrue(g.connections_at_max())
+
+    def test_evalutate(self):
+        inn_num_gen = innovation_number_generator()
+        inn_num_gen.send(None)
+        g = Genome(2, 2, self.relu, inn_num_gen)
+
+        # No hidden nodes, relu activation
+        g.add_connection(0, 2, weight=-0.7)
+        g.add_connection(0, 3, weight=-0.1)
+        g.add_connection(1, 2, weight=0.5)
+        g.add_connection(1, 3, weight=0.9)
+        results = g.evaluate([0.5, 0.5])
+        self.assertEqual(results[0], 0.0)
+        self.assertEqual(results[1], 0.4)
+
+        # Different activation
+        g.activation = lambda self, x: x+1
+        results = g.evaluate([0.5, 0.5])
+        self.assertEqual(results[0], 0.9)
+        self.assertEqual(results[1], 1.4)
+
+        # With hidden nodes
+        g.add_node(0)
+        g.add_node(2)
+        g.add_connection(4, 5, 0.5)
+        results = g.evaluate([0.5, 0.5])
+        self.assertEqual(results[0], 1.0750000000000002)
+        self.assertEqual(results[1], 1.4)
+
+
+
+
 
 
 class TestNode(unittest.TestCase):

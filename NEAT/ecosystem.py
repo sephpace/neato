@@ -1,6 +1,5 @@
 
-from NEAT.genome import Genome
-from activations import relu
+from genome import Genome
 
 
 def innovation_number_generator():

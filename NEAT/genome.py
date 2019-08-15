@@ -169,6 +169,8 @@ class Genome:
             else:
                 self.nodes[i].set_value(0.0)
 
+        # TODO: Fix it so the activation function only gets run when the node has its final value (instead of running it for every connection)
+
         # Calculate the outputs
         self.sort_connections()
         for conn in self.connections:
