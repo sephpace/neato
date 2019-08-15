@@ -1,5 +1,4 @@
 
-import numpy as np
 import random
 
 
@@ -101,7 +100,6 @@ class Genome:
                     self.connections.append(conn)
                     break
 
-
     def add_node(self):
         """
         Randomly adds a hidden node onto an existing connection.
@@ -122,7 +120,6 @@ class Genome:
         self.connections.append(Connection(conn_id_2, rand_conn.get_in_node(), self.node_id_index, weight=1.0))
         self.node_id_index += 1
 
-
     def evaluate(self, inputs):
         """
         Evaluate the neural network (genome) and return the outputs.
@@ -134,8 +131,7 @@ class Genome:
         list: A list of output floats between of length equal to the amount of output nodes
         """
         if len(inputs) != self.input_length:
-            raise InputError('Invalid input!  Amount required: {0}  Amount given: {1}'.format(self.input_length, len(inputs)))
-            return None
+            raise Exception('Invalid input!  Amount required: {0}  Amount given: {1}'.format(self.input_length, len(inputs)))
 
         # Enter the inputs and reset all non-inputs to zero
         input_index = 0
@@ -150,9 +146,9 @@ class Genome:
         self.sort_connections()
         for conn in self.connections:
             if conn.is_expressed():
-                input, output = self.nodes[conn.get_in_node()], self.nodes[conn.get_out_node()]
-                output.set_value(output.get_value() + input.get_value() * conn.get_weight())
-                output.set_value(self.activation(output.get_value()))
+                in_node, out_node = self.nodes[conn.get_in_node()], self.nodes[conn.get_out_node()]
+                out_node.set_value(out_node.get_value() + in_node.get_value() * conn.get_weight())
+                out_node.set_value(self.activation(out_node.get_value()))
 
         # Return the outputs
         return [node.get_value() for node in self.nodes if node.get_type() == 'output']
@@ -163,10 +159,10 @@ class Genome:
         """
         i = 0
         while i < len(self.connections):
-            input = self.connections[i].get_in_node()
+            in_node = self.connections[i].get_in_node()
             j = i
             while j < len(self.connections) - i:
-                if self.connections[j].get_out_node() == input:
+                if self.connections[j].get_out_node() == in_node:
                     self.connections.insert(i, self.connections.pop(j))
                     i -= 2
                     break
@@ -185,7 +181,6 @@ class Genome:
         output_amt = self.output_length
         hidden_amt = len(self.nodes) - self.input_length - self.output_length
 
-        maxxed = False
         if hidden_amt == 0:
             maxxed = len(self.connections) == input_amt * output_amt
         else:
@@ -198,25 +193,25 @@ class Node:
     A node gene in the genome.
 
     Attributes:
-    __id (int):      The node's id number within the genome
-    __type (str):    The type of node ('input', 'output', or 'hidden')
-    __value (float): The current value contained in the node (the input for input nodes, the output for output nodes, or the placeholder value for hidden nodes)
+    __id_num (int):    The node's id number within the genome
+    __node_type (str): The type of node ('input', 'output', or 'hidden')
+    __value (float):   The current value contained in the node (the input for input nodes, the output for output nodes, or the placeholder value for hidden nodes)
     """
-    def __init__(self, id, type):
+    def __init__(self, id_num, node_type):
         """
         Constructor.
 
         Parameters:
-        id (int):      The node's id number within the genome
-        type (str):    The type of node ('input', 'output', or 'hidden')
+        id (int):        The node's id number within the genome
+        node_type (str): The type of node ('input', 'output', or 'hidden')
         """
-        self.__id = id
-        self.__type = type
+        self.__id_num = id_num
+        self.__node_type = node_type
         self.__value = 0.0
 
-    def get_id(self): return self.__id
+    def get_id(self): return self.__id_num
 
-    def get_type(self): return self.__type
+    def get_type(self): return self.__node_type
 
     def get_value(self): return self.__value
 
@@ -258,7 +253,6 @@ class Connection:
         return conn.get_innovation_number() == self.__innovation_number
 
     def __str__(self):
-        expressed = ''
         if self.__expressed:
             expressed = 'O'
         else:
@@ -284,6 +278,7 @@ class Connection:
 
 def relu(x): return max(0, x)
 
+
 def innovation_number_generator():
     """
     A generator that given the in node and out node of a connection as a tuple through the send function,
@@ -299,7 +294,6 @@ def innovation_number_generator():
         else:
             inn_log.append(conn)
             inn_num = len(inn_log) - 1
-
 
 
 # Testing
