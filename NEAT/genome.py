@@ -1,5 +1,6 @@
 
 import random
+import math
 
 
 class Genome:
@@ -59,13 +60,13 @@ class Genome:
         Returns:
         str: The genome's connection data
         """
-        self.nodes.sort(key=lambda n: n.get_id())
-        self.connections.sort(key=lambda c: c.get_innovation_number())
+        sorted_nodes = sorted(self.nodes, key=lambda n: n.get_id())
+        sorted_connections = sorted(self.connections, key=lambda c: c.get_innovation_number())
         genome_string = '\n-------------Nodes-------------\n'
-        for n in self.nodes:
+        for n in sorted_nodes:
             genome_string += str(n) + '\n'
         genome_string += '\n----------Connections----------\n'
-        for c in self.connections:
+        for c in sorted_connections:
             genome_string += str(c) + '\n'
         return genome_string
 
@@ -92,13 +93,19 @@ class Genome:
         if reverse:
             inn_num = self.inn_num_gen.send((node2, node1))
             conn = Connection(inn_num, node2, node1, weight=weight)
+            inn_num = self.inn_num_gen.send((node1, node2))
+            reverse_conn = Connection(inn_num, node1, node2, weight=weight)
         else:
             inn_num = self.inn_num_gen.send((node1, node2))
             conn = Connection(inn_num, node1, node2, weight=weight)
+            inn_num = self.inn_num_gen.send((node2, node1))
+            reverse_conn = Connection(inn_num, node2, node1, weight=weight)
 
         # Only add the connection if it doesn't already exist within the genome
-        if conn not in self.connections:
+        if conn not in self.connections and reverse_conn not in self.connections:
             self.connections.append(conn)
+        else:
+            raise GenomeError('Invalid connection!  Already exists within genome!')
 
     def add_node(self, innovation_number):
         """
@@ -120,14 +127,14 @@ class Genome:
         conn = self.connections[conn_index]
         conn.disable()
 
-        # Create the node
-        self.nodes.append(Node(self.node_id_index, 'hidden'))
-
         # Create new connections to add in place of the disabled connection
         conn_id_1 = self.inn_num_gen.send((self.node_id_index, conn.get_out_node()))
         conn_id_2 = self.inn_num_gen.send((conn.get_in_node(), self.node_id_index))
         self.connections.append(Connection(conn_id_1, self.node_id_index, conn.get_out_node(), weight=conn.get_weight()))
         self.connections.append(Connection(conn_id_2, conn.get_in_node(), self.node_id_index, weight=1.0))
+
+        # Create the node
+        self.nodes.append(Node(self.node_id_index, 'hidden'))
         self.node_id_index += 1
 
     def connections_at_max(self):
@@ -169,15 +176,16 @@ class Genome:
             else:
                 self.nodes[i].set_value(0.0)
 
-        # TODO: Fix it so the activation function only gets run when the node has its final value (instead of running it for every connection)
-
         # Calculate the outputs
         self.sort_connections()
         for conn in self.connections:
             if conn.is_expressed():
                 in_node, out_node = self.nodes[conn.get_in_node()], self.nodes[conn.get_out_node()]
                 out_node.set_value(out_node.get_value() + in_node.get_value() * conn.get_weight())
-                out_node.set_value(self.activation(out_node.get_value()))
+
+                # Call the activation function if the out node has finished being calculated
+                if out_node.get_id() not in [c.get_out_node() for c in self.connections[self.connections.index(conn)+1:]]:
+                    out_node.set_value(self.activation(out_node.get_value()))
 
         # Return the outputs
         return [node.get_value() for node in self.nodes if node.get_type() == 'output']
@@ -194,29 +202,11 @@ class Genome:
                 while node2 == node1:
                     node2 = random.randint(0, len(self.nodes)-1)
 
-                # Get the types of the random nodes
-                node1_type = self.nodes[node1].get_type()
-                node2_type = self.nodes[node2].get_type()
-
-                # Don't allow outputs to connect to outputs and inputs to inputs
-                if node1_type == node2_type == 'input' or node1_type == node2_type == 'output':
-                    continue
-
-                # Check if the order of the randomly selected nodes should be reversed
-                reverse = (node1_type == 'hidden' and node2_type == 'input') or (node1_type == 'output' and node2_type == 'hidden') or (node1_type == 'output' and node2_type == 'input')
-
-                # Create the connection and add it to the genome
-                if reverse:
-                    inn_num = self.inn_num_gen.send((node2, node1))
-                    conn = Connection(inn_num, node2, node1)
-                else:
-                    inn_num = self.inn_num_gen.send((node1, node2))
-                    conn = Connection(inn_num, node1, node2)
-
-                # Only add the connection if it doesn't already exist within the genome
-                if conn not in self.connections:
-                    self.connections.append(conn)
+                try:
+                    self.add_connection(node1, node2)
                     break
+                except GenomeError:
+                    continue
 
     def mutate_add_node(self):
         """
@@ -224,19 +214,16 @@ class Genome:
 
         The existing connection is disabled and two new connections are added in its place.
         """
-        # Create the node
-        self.nodes.append(Node(self.node_id_index, 'hidden'))
+        if len(self.connections) > 0:
+            # Select a random expressed connection and disable it
+            expressed_connections = [c for c in self.connections if c.is_expressed()]
+            if len(expressed_connections) == 0:
+                return
+            rand_conn = expressed_connections[random.randint(0, len(expressed_connections)-1)]
+            rand_conn.disable()
 
-        # Select a random connection to add the node to and disable it
-        rand_conn = self.connections[random.randint(0, len(self.connections)-1)]
-        rand_conn.disable()
-
-        # Create new connections to add in place of the randomly selected connection
-        conn_id_1 = self.inn_num_gen.send((self.node_id_index, rand_conn.get_out_node()))
-        conn_id_2 = self.inn_num_gen.send((rand_conn.get_in_node(), self.node_id_index))
-        self.connections.append(Connection(conn_id_1, self.node_id_index, rand_conn.get_out_node(), weight=rand_conn.get_weight()))
-        self.connections.append(Connection(conn_id_2, rand_conn.get_in_node(), self.node_id_index, weight=1.0))
-        self.node_id_index += 1
+            # Add the node to the random connection
+            self.add_node(rand_conn.get_innovation_number())
 
     def sort_connections(self):
         """
@@ -244,15 +231,16 @@ class Genome:
         """
         i = 0
         while i < len(self.connections):
-            in_node = self.connections[i].get_in_node()
-            j = i
-            while j < len(self.connections) - i:
-                if self.connections[j].get_out_node() == in_node:
+            j = i+1
+            # back_amt = 0
+            while j < len(self.connections):
+                if self.connections[j].get_out_node() == self.connections[i].get_in_node():
                     self.connections.insert(i, self.connections.pop(j))
-                    i -= 2
-                    break
-                else:
-                    j += 1
+                    i += 1
+                    # back_amt += 1
+                    print('{0}->{1}'.format(j, i))
+                j += 1
+            # i -= back_amt
             i += 1
 
 
@@ -278,7 +266,7 @@ class Node:
         self.__value = 0.0
 
     def __str__(self):
-        return '{0}: {1:6s} {2}'.format(self.__id_num, self.__node_type, self.__value)
+        return '{0:3d}: {1:6s} {2}'.format(self.__id_num, self.__node_type, self.__value)
 
     def get_id(self): return self.__id_num
 
@@ -328,7 +316,7 @@ class Connection:
             expressed = 'O'
         else:
             expressed = 'X'
-        return '{0}:{1}-{2} [{4}] {3}'.format(self.__innovation_number, self.__in_node, self.__out_node, self.__weight, expressed)
+        return '{0:3d}:{1}-{2} [{4}] {3}'.format(self.__innovation_number, self.__in_node, self.__out_node, self.__weight, expressed)
 
     def enable(self): self.__expressed = True
 
