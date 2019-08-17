@@ -36,21 +36,21 @@ class Genome:
         output_length (int):           The amount of output nodes
         inn_num_gen (generator):       The innovation number generator used to assign innovation numbers to connections
         """
-        self.input_length = input_length
-        self.output_length = output_length
-        self.inn_num_gen = inn_num_gen
-        self.nodes = []
-        self.connections = []
-        self.node_id_index = 0
+        self.__input_length = input_length
+        self.__output_length = output_length
+        self.__inn_num_gen = inn_num_gen
+        self.__nodes = []
+        self.__connections = []
+        self.__node_id_index = 0
 
         # Add input and output nodes to their respective lists
         for i in range(input_length):
-            self.nodes.append(Node(self.node_id_index, 'input'))
-            self.node_id_index += 1
+            self.__nodes.append(Node(self.__node_id_index, 'input'))
+            self.__node_id_index += 1
 
         for i in range(output_length):
-            self.nodes.append(Node(self.node_id_index, 'output'))
-            self.node_id_index += 1
+            self.__nodes.append(Node(self.__node_id_index, 'output'))
+            self.__node_id_index += 1
 
     def __str__(self):
         """
@@ -59,8 +59,8 @@ class Genome:
         Returns:
         str: The genome's connection data
         """
-        sorted_nodes = sorted(self.nodes, key=lambda node: node.get_id())
-        sorted_connections = sorted(self.connections, key=lambda conn: conn.get_innovation_number())
+        sorted_nodes = sorted(self.__nodes, key=lambda node: node.get_id())
+        sorted_connections = sorted(self.__connections, key=lambda conn: conn.get_innovation_number())
         genome_string = '\n-------------Nodes-------------\n'
         for n in sorted_nodes:
             genome_string += str(n) + '\n'
@@ -82,13 +82,13 @@ class Genome:
             raise GenomeError('Cannot connect node to itself!')
 
         # Check if the connection or its reverse already exist within the genome
-        for c in self.connections:
+        for c in self.__connections:
             if (c.get_in_node() == node1 and c.get_out_node() == node2) or (c.get_in_node() == node2 and c.get_out_node() == node1):
                 raise GenomeError('Connection already exists within genome!')
 
         # Get the types of the nodes
-        node1_type = self.nodes[node1].get_type()
-        node2_type = self.nodes[node2].get_type()
+        node1_type = self.get_node(node1).get_type()
+        node2_type = self.get_node(node2).get_type()
 
         # Don't allow outputs to connect to outputs and inputs to inputs
         if node1_type == node2_type == 'input' or node1_type == node2_type == 'output':
@@ -106,14 +106,14 @@ class Genome:
 
         # Create the connection and add it to the genome
         if reverse:
-            inn_num = self.inn_num_gen.send((node2, node1))
+            inn_num = self.__inn_num_gen.send((node2, node1))
             conn = Connection(inn_num, node2, node1, weight=weight)
         else:
-            inn_num = self.inn_num_gen.send((node1, node2))
+            inn_num = self.__inn_num_gen.send((node1, node2))
             conn = Connection(inn_num, node1, node2, weight=weight)
 
         # Add the connection to the genome
-        self.connections.append(conn)
+        self.__connections.append(conn)
 
     def add_node(self, innovation_number, activation=activations.modified_sigmoid):
         """
@@ -126,25 +126,20 @@ class Genome:
         activation (function):   The activation function for the node
         """
         # Find the connection to add the node to and disable it
-        conn_index = None
-        for i in range(len(self.connections)):
-            if self.connections[i].get_innovation_number() == innovation_number:
-                conn_index = i
-                break
-        if conn_index is None:
+        conn = self.get_connection(innovation_number)
+        if conn is None:
             raise GenomeError('Connection with innovation number {0} does not exist within genome!'.format(innovation_number))
-        conn = self.connections[conn_index]
         conn.disable()
 
         # Create new connections to add in place of the disabled connection
-        conn_id_1 = self.inn_num_gen.send((self.node_id_index, conn.get_out_node()))
-        conn_id_2 = self.inn_num_gen.send((conn.get_in_node(), self.node_id_index))
-        self.connections.append(Connection(conn_id_1, self.node_id_index, conn.get_out_node(), weight=conn.get_weight()))
-        self.connections.append(Connection(conn_id_2, conn.get_in_node(), self.node_id_index, weight=1.0))
+        conn_id_1 = self.__inn_num_gen.send((self.__node_id_index, conn.get_out_node()))
+        conn_id_2 = self.__inn_num_gen.send((conn.get_in_node(), self.__node_id_index))
+        self.__connections.append(Connection(conn_id_1, self.__node_id_index, conn.get_out_node(), weight=conn.get_weight()))
+        self.__connections.append(Connection(conn_id_2, conn.get_in_node(), self.__node_id_index, weight=1.0))
 
         # Create the node
-        self.nodes.append(Node(self.node_id_index, 'hidden', activation=activation))
-        self.node_id_index += 1
+        self.__nodes.append(Node(self.__node_id_index, 'hidden', activation=activation))
+        self.__node_id_index += 1
 
     def connections_at_max(self):
         """
@@ -153,14 +148,14 @@ class Genome:
         Returns:
         bool: True if there are no possible places for new connections that are not already filled
         """
-        input_amt = self.input_length
-        output_amt = self.output_length
-        hidden_amt = len(self.nodes) - self.input_length - self.output_length
+        input_amt = self.__input_length
+        output_amt = self.__output_length
+        hidden_amt = len(self.__nodes) - self.__input_length - self.__output_length
 
         if hidden_amt == 0:
-            at_max = len(self.connections) == input_amt * output_amt
+            at_max = len(self.__connections) == input_amt * output_amt
         else:
-            at_max = len(self.connections) == (input_amt * output_amt) + (input_amt * hidden_amt) + (hidden_amt * output_amt) + (hidden_amt - 1)
+            at_max = len(self.__connections) == (input_amt * output_amt) + (input_amt * hidden_amt) + (hidden_amt * output_amt) + (hidden_amt - 1)
         return at_max
 
     def evaluate(self, inputs):
@@ -173,31 +168,63 @@ class Genome:
         Returns:
         list: A list of output floats between of length equal to the amount of output nodes
         """
-        if len(inputs) != self.input_length:
-            raise ValueError('Invalid input!  Amount required: {0}  Amount given: {1}'.format(self.input_length, len(inputs)))
+        if len(inputs) != self.__input_length:
+            raise ValueError('Invalid input!  Amount required: {0}  Amount given: {1}'.format(self.__input_length, len(inputs)))
 
         # Enter the inputs and reset all non-inputs to zero
         input_index = 0
-        for i in range(len(self.nodes)):
-            if self.nodes[i].get_type() == 'input':
-                self.nodes[i].set_value(inputs[input_index])
+        for i in range(len(self.__nodes)):
+            if self.__nodes[i].get_type() == 'input':
+                self.__nodes[i].set_value(inputs[input_index])
                 input_index += 1
             else:
-                self.nodes[i].set_value(0.0)
+                self.__nodes[i].set_value(0.0)
 
         # Calculate the outputs
         self.sort_connections()
-        for conn in self.connections:
+        for conn in self.__connections:
             if conn.is_expressed():
-                in_node, out_node = self.nodes[conn.get_in_node()], self.nodes[conn.get_out_node()]
+                in_node, out_node = self.get_node(conn.get_in_node()), self.get_node(conn.get_out_node())
                 out_node.set_value(out_node.get_value() + in_node.get_value() * conn.get_weight())
 
                 # Call the activation function if the out node has finished being calculated
-                if out_node.get_id() not in [c.get_out_node() for c in self.connections[self.connections.index(conn)+1:]]:
+                if out_node.get_id() not in [c.get_out_node() for c in self.__connections[self.__connections.index(conn)+1:]]:
                     out_node.activate()
 
         # Return the outputs
-        return [node.get_value() for node in self.nodes if node.get_type() == 'output']
+        return [node.get_value() for node in self.__nodes if node.get_type() == 'output']
+
+    def get_connection(self, innovation_number):
+        """
+        Returns the connection with the given innovation number.
+
+        Parameters:
+        innovation_number (int): The innovation number of the connection
+
+        Returns:
+        (Connection): The connection in the genome with the given innovation number or None if it doesn't exist
+        """
+        for connection in self.__connections:
+            if connection.get_innovation_number() == innovation_number:
+                return connection
+
+    def get_connections(self): return self.__connections
+
+    def get_node(self, node_id):
+        """
+        Returns the node with the given id.
+
+        Parameters:
+        node_id (int): The id of the node
+
+        Returns:
+        (Node): The node in the genome with the given id or None if it doesn't exist
+        """
+        for node in self.__nodes:
+            if node.get_id() == node_id:
+                return node
+
+    def get_nodes(self): return self.__nodes
 
     def get_node_max_distance(self, node):
         """
@@ -211,11 +238,11 @@ class Genome:
         Returns:
         (int): The maximum distance from an input node
         """
-        if self.nodes[node].get_type() == 'input':
+        if self.get_node(node).get_type() == 'input':
             return 0
         else:
             distances = []
-            for c in self.connections:
+            for c in self.__connections:
                 if c.get_out_node() == node:
                     distances.append(self.get_node_max_distance(c.get_in_node()) + 1)
             return max(distances)
@@ -227,7 +254,7 @@ class Genome:
         if self.connections_at_max() is False:
             while True:
                 # Select two random, unequal nodes to connect
-                node_ids = [node.get_id() for node in self.nodes]
+                node_ids = [node.get_id() for node in self.__nodes]
                 node1 = random.choice(node_ids)
                 node2 = random.choice(node_ids)
 
@@ -243,9 +270,9 @@ class Genome:
 
         The existing connection is disabled and two new connections are added in its place.
         """
-        if len(self.connections) > 0:
+        if len(self.__connections) > 0:
             # Select a random expressed connection and disable it
-            expressed_connections = [c for c in self.connections if c.is_expressed()]
+            expressed_connections = [c for c in self.__connections if c.is_expressed()]
             if len(expressed_connections) == 0:
                 return
             rand_conn = random.choice(expressed_connections)
@@ -258,27 +285,27 @@ class Genome:
         """
         Randomly selects a hidden node and sets its activation to a random function.
         """
-        rand_hidden_node = random.choice([node for node in self.nodes if node.get_type() == 'hidden'])
+        rand_hidden_node = random.choice([node for node in self.__nodes if node.get_type() == 'hidden'])
         rand_hidden_node.set_activation(activations.get_random())
 
     def mutate_random_weight(self):
         """
         Randomly selects a connection and sets its weight to a random value.
         """
-        rand_conn = random.choice(self.connections)
+        rand_conn = random.choice(self.__connections)
         rand_conn.set_random_weight()
 
     def mutate_shift_weight(self, step=0.1):
         """
         Randomly selects a connection and shifts its weight up or down a small step.
         """
-        if len(self.connections) > 0:
+        if len(self.__connections) > 0:
             # Randomly select whether it increases or decreases by the step
             random_sign = 1 if math.cos(random.random() * math.pi) > 0 else -1
             step *= random_sign
 
             # Select a random connection and shift its weight
-            rand_conn = random.choice(self.connections)
+            rand_conn = random.choice(self.__connections)
             rand_conn.set_weight(rand_conn.get_weight() + step)
 
     def mutate_toggle_connection(self):
@@ -287,22 +314,26 @@ class Genome:
 
         If it's enabled, it will become disabled and vice versa.
         """
-        if len(self.connections) > 0:
+        if len(self.__connections) > 0:
             # Select a random connection and toggle it
-            rand_conn = random.choice(self.connections)
+            rand_conn = random.choice(self.__connections)
             rand_conn.toggle()
+
+    def set_connections(self, connections): self.__connections = connections
+
+    def set_nodes(self, nodes): self.__nodes = nodes
 
     def sort_connections(self):
         """
         Sorts the connections to be in feed-forward order.
         """
         i = 0
-        while i < len(self.connections):
+        while i < len(self.__connections):
             j = i+1
             back_amt = -1
-            while j < len(self.connections):
-                if self.connections[j].get_out_node() == self.connections[i].get_in_node():
-                    self.connections.insert(i, self.connections.pop(j))
+            while j < len(self.__connections):
+                if self.__connections[j].get_out_node() == self.__connections[i].get_in_node():
+                    self.__connections.insert(i, self.__connections.pop(j))
                     i += 1
                     back_amt += 1
                 j += 1
