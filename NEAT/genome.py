@@ -2,6 +2,8 @@
 import math
 import random
 
+import activations
+
 
 class Genome:
     """
@@ -17,28 +19,25 @@ class Genome:
     toggle connection expression.
 
     Attributes:
-    __input_length (int):      The amount of input nodes
-    __output_length (int):     The amount of output nodes
-    __activation (function):   The activation function used by the genome
-    __inn_num_gen (generator): The innovation number generator used to assign innovation numbers to connections
-    __nodes (list):            The list of nodes in the genome
-    __connections (list):      The list of connections in the genome
-    __node_id_index (int):     A number that is incremented with each new node to ensure id uniqueness
+    __input_length (int):            The amount of input nodes
+    __output_length (int):           The amount of output nodes
+    __inn_num_gen (generator):       The innovation number generator used to assign innovation numbers to connections
+    __nodes (list):                  The list of nodes in the genome
+    __connections (list):            The list of connections in the genome
+    __node_id_index (int):           A number that is incremented with each new node to ensure id uniqueness
     """
 
-    def __init__(self, input_length, output_length, activation, inn_num_gen):
+    def __init__(self, input_length, output_length, inn_num_gen):
         """
         Constructor.
 
         Parameters:
-        input_length (int):      The amount of input nodes
-        output_length (int):     The amount of output nodes
-        activation (function):   The activation function used by the genome
-        inn_num_gen (generator): The innovation number generator used to assign innovation numbers to connections
+        input_length (int):            The amount of input nodes
+        output_length (int):           The amount of output nodes
+        inn_num_gen (generator):       The innovation number generator used to assign innovation numbers to connections
         """
         self.input_length = input_length
         self.output_length = output_length
-        self.activation = activation
         self.inn_num_gen = inn_num_gen
         self.nodes = []
         self.connections = []
@@ -116,7 +115,7 @@ class Genome:
         # Add the connection to the genome
         self.connections.append(conn)
 
-    def add_node(self, innovation_number):
+    def add_node(self, innovation_number, activation=activations.modified_sigmoid):
         """
         Adds a hidden node onto an existing connection with the given innovation number.
 
@@ -124,6 +123,7 @@ class Genome:
 
         Parameters:
         innovation_number (int): The innovation number of the connection to add the node to
+        activation (function):   The activation function for the node
         """
         # Find the connection to add the node to and disable it
         conn_index = None
@@ -143,7 +143,7 @@ class Genome:
         self.connections.append(Connection(conn_id_2, conn.get_in_node(), self.node_id_index, weight=1.0))
 
         # Create the node
-        self.nodes.append(Node(self.node_id_index, 'hidden'))
+        self.nodes.append(Node(self.node_id_index, 'hidden', activation=activation))
         self.node_id_index += 1
 
     def connections_at_max(self):
@@ -194,7 +194,7 @@ class Genome:
 
                 # Call the activation function if the out node has finished being calculated
                 if out_node.get_id() not in [c.get_out_node() for c in self.connections[self.connections.index(conn)+1:]]:
-                    out_node.set_value(self.activation(out_node.get_value()))
+                    out_node.activate()
 
         # Return the outputs
         return [node.get_value() for node in self.nodes if node.get_type() == 'output']
@@ -254,6 +254,13 @@ class Genome:
             # Add the node to the random connection
             self.add_node(rand_conn.get_innovation_number())
 
+    def mutate_random_activation(self):
+        """
+        Randomly selects a hidden node and sets its activation to a random function.
+        """
+        rand_hidden_node = random.choice([node for node in self.nodes if node.get_type() == 'hidden'])
+        rand_hidden_node.set_activation(activations.get_random())
+
     def mutate_random_weight(self):
         """
         Randomly selects a connection and sets its weight to a random value.
@@ -307,30 +314,55 @@ class Node:
     A node gene in the genome.
 
     Attributes:
-    __id_num (int):    The node's id number within the genome
-    __node_type (str): The type of node ('input', 'output', or 'hidden')
-    __value (float):   The current value contained in the node (the input for input nodes, the output for output nodes, or the placeholder value for hidden nodes)
+    __id_num (int):          The node's id number within the genome
+    __node_type (str):       The type of node ('input', 'output', or 'hidden')
+    __activation (function): The node's activation function
+    __value (float):         The current value contained in the node (the input for input nodes, the output for output
+                             nodes, or the placeholder value for hidden nodes)
     """
-    def __init__(self, id_num, node_type, value=0.0):
+    def __init__(self, id_num, node_type, activation=activations.modified_sigmoid, value=0.0):
         """
         Constructor.
 
         Parameters:
         id (int):        The node's id number within the genome
         node_type (str): The type of node ('input', 'output', or 'hidden')
+        activation (function): The node's activation function
+        value (float):       The current value contained in the node (the input for input nodes, the output for output
+                             nodes, or the placeholder value for hidden nodes)
         """
         self.__id_num = id_num
         self.__node_type = node_type
+        if node_type == 'input':
+            self.__activation = None
+        else:
+            self.__activation = activation
         self.__value = value
 
     def __str__(self):
         return '{0:3d}: {1:6s} {2}'.format(self.__id_num, self.__node_type, self.__value)
+
+    def activate(self):
+        """
+        Run the node's value through its activation function.
+        """
+        if self.__activation is not None:
+            self.__value = self.__activation(self.__value)
+
+    def get_activation(self): return self.__activation
 
     def get_id(self): return self.__id_num
 
     def get_type(self): return self.__node_type
 
     def get_value(self): return self.__value
+
+    def set_activation(self, activation):
+        """
+        Only sets the activation for hidden and output nodes.
+        """
+        if self.__node_type != 'input':
+            self.__activation = activation
 
     def set_value(self, value): self.__value = value
 
