@@ -6,7 +6,7 @@ from ecosystem import innovation_number_generator
 
 
 class TestGenome(unittest.TestCase):
-    relu = lambda self, x: max(0.0, x)
+    def relu(self, x): return max(0.0, x)
 
     def test_constructor(self):
         input_length = 2
@@ -103,6 +103,15 @@ class TestGenome(unittest.TestCase):
         except GenomeError:
             out_to_out = True
         self.assertTrue(out_to_out, msg)
+
+        # Make sure you can't connect a node to itself
+        msg = 'Node connected to itself!'
+        node_to_itself = False
+        try:
+            g.add_connection(6, 6)
+        except GenomeError:
+            node_to_itself = True
+        self.assertTrue(node_to_itself, msg)
 
     def test_add_node(self):
         inn_num_gen = innovation_number_generator()
@@ -241,6 +250,7 @@ class TestGenome(unittest.TestCase):
         self.assertTrue(g.connections[0].get_out_node() in [n.get_id() for n in g.nodes], msg)
         self.assertTrue(-1.0 <= g.connections[0].get_weight() <= 1.0, msg)
         self.assertTrue(g.connections[0].is_expressed(), msg)
+        self.assertNotEqual(g.connections[0].get_in_node(), g.connections[0].get_out_node())
 
         # Test to make sure connections are always added (unless at max)
         msg = 'Connection not added!'
@@ -285,25 +295,66 @@ class TestGenome(unittest.TestCase):
         g.mutate_add_node()
         self.assertEqual(len(g.nodes), 3, msg)
 
+    def test_mutate_random_weight(self):
+        inn_num_gen = innovation_number_generator()
+        inn_num_gen.send(None)
+        g = Genome(1, 1, self.relu, inn_num_gen)
+
+        msg = 'Failed to set random connection weight!'
+
+        # Test with one connection
+        g.add_connection(0, 1, weight=5)
+        g.mutate_random_weight()
+        self.assertNotEqual(g.connections[0].get_weight(), 5, msg)
+        self.assertTrue(-1.0, g.connections[0].get_weight() <= 1.0)
+
+        # Test with multiple connections
+        g.add_node(0)
+        before = [c.get_weight() for c in g.connections]
+        g.mutate_random_weight()
+        after = [c.get_weight() for c in g.connections]
+        self.assertNotEqual(before, after, msg)
+
+    def test_mutate_shift_weight(self):
+        inn_num_gen = innovation_number_generator()
+        inn_num_gen.send(None)
+        g = Genome(1, 1, self.relu, inn_num_gen)
+
+        msg = 'Failed to shift weight correctly!'
+
+        # Test with one connection
+        g.add_connection(0, 1, weight=0.0)
+        g.mutate_shift_weight(step=0.1)
+        self.assertNotEqual(g.connections[0].get_weight(), 0.0, msg)
+        self.assertTrue(g.connections[0].get_weight() == 0.1 or g.connections[0].get_weight() == -0.1)
+
+        # Test with multiple connections
+        g.add_node(0)
+        before = [c.get_weight() for c in g.connections]
+        g.mutate_shift_weight()
+        after = [c.get_weight() for c in g.connections]
+        self.assertNotEqual(before, after, msg)
+
     def test_mutate_toggle_connection(self):
         inn_num_gen = innovation_number_generator()
         inn_num_gen.send(None)
         g = Genome(1, 1, self.relu, inn_num_gen)
 
+        msg = 'Failed to toggle connection!'
+
         # Test with one connection
         g.add_connection(0, 1)
         g.mutate_toggle_connection()
-        self.assertFalse(g.connections[0].is_expressed())
+        self.assertFalse(g.connections[0].is_expressed(), msg)
         g.mutate_toggle_connection()
-        self.assertTrue(g.connections[0].is_expressed())
+        self.assertTrue(g.connections[0].is_expressed(), msg)
 
         # Test with multiple connections
         g.add_node(0)
         before = [c.is_expressed() for c in g.connections]
         g.mutate_toggle_connection()
         after = [c.is_expressed() for c in g.connections]
-        self.assertNotEqual(before, after)
-
+        self.assertNotEqual(before, after, msg)
 
     def test_sort_connections(self):
         inn_num_gen = innovation_number_generator()
@@ -399,16 +450,24 @@ class TestConnection(unittest.TestCase):
         msg = 'Failed to set connection weight correctly!'
         c = Connection(0, 0, 2)
         c.set_weight(117)
-        self.assertEqual(c.get_weight(), 117)
+        self.assertEqual(c.get_weight(), 117, msg)
+
+    def test_set_random_weight(self):
+        # Test to make sure it returns a random value between -1 and 1
+        msg = 'Failed to set connection weight correctly!'
+        c = Connection(0, 0, 2, weight=5)
+        c.set_random_weight()
+        self.assertNotEqual(c.get_weight(), 5, msg)
+        self.assertTrue(-1.0 <= c.get_weight() <= 1.0, msg)
 
     def test_toggle(self):
         # Test to make sure the connection's expression toggles correctly
         msg = 'Failed to toggle connection\'s expression correctly!'
         c = Connection(0, 0, 2)
         c.toggle()
-        self.assertFalse(c.is_expressed())
+        self.assertFalse(c.is_expressed(), msg)
         c.toggle()
-        self.assertTrue(c.is_expressed())
+        self.assertTrue(c.is_expressed(), msg)
 
 
 if __name__ == '__main__':

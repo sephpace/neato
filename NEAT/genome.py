@@ -1,4 +1,5 @@
 
+import math
 import random
 
 
@@ -77,6 +78,10 @@ class Genome:
         node1 (int): The id of the first node
         node2 (int): The id of the second node
         """
+        # Make sure the nodes aren't the same
+        if node1 == node2:
+            raise GenomeError('Cannot connect node to itself!')
+
         # Check if the connection or its reverse already exist within the genome
         for c in self.connections:
             if (c.get_in_node() == node1 and c.get_out_node() == node2) or (c.get_in_node() == node2 and c.get_out_node() == node1):
@@ -222,10 +227,9 @@ class Genome:
         if self.connections_at_max() is False:
             while True:
                 # Select two random, unequal nodes to connect
-                node1 = random.randint(0, len(self.nodes)-1)
-                node2 = node1
-                while node2 == node1:
-                    node2 = random.randint(0, len(self.nodes)-1)
+                node_ids = [node.get_id() for node in self.nodes]
+                node1 = random.choice(node_ids)
+                node2 = random.choice(node_ids)
 
                 try:
                     self.add_connection(node1, node2)
@@ -244,11 +248,31 @@ class Genome:
             expressed_connections = [c for c in self.connections if c.is_expressed()]
             if len(expressed_connections) == 0:
                 return
-            rand_conn = expressed_connections[random.randint(0, len(expressed_connections)-1)]
+            rand_conn = random.choice(expressed_connections)
             rand_conn.disable()
 
             # Add the node to the random connection
             self.add_node(rand_conn.get_innovation_number())
+
+    def mutate_random_weight(self):
+        """
+        Randomly selects a connection and sets its weight to a random value.
+        """
+        rand_conn = random.choice(self.connections)
+        rand_conn.set_random_weight()
+
+    def mutate_shift_weight(self, step=0.1):
+        """
+        Randomly selects a connection and shifts its weight up or down a small step.
+        """
+        if len(self.connections) > 0:
+            # Randomly select whether it increases or decreases by the step
+            random_sign = 1 if math.cos(random.random() * math.pi) > 0 else -1
+            step *= random_sign
+
+            # Select a random connection and shift its weight
+            rand_conn = random.choice(self.connections)
+            rand_conn.set_weight(rand_conn.get_weight() + step)
 
     def mutate_toggle_connection(self):
         """
@@ -258,7 +282,7 @@ class Genome:
         """
         if len(self.connections) > 0:
             # Select a random connection and toggle it
-            rand_conn = self.connections[random.randint(0, len(self.connections)-1)]
+            rand_conn = random.choice(self.connections)
             rand_conn.toggle()
 
     def sort_connections(self):
@@ -339,7 +363,8 @@ class Connection:
         if weight is not None:
             self.__weight = weight
         else:
-            self.__weight = random.random()
+            self.__weight = 0.0
+            self.set_random_weight()
         self.__expressed = expressed
 
     def __eq__(self, conn):
@@ -367,6 +392,8 @@ class Connection:
     def get_weight(self): return self.__weight
 
     def set_weight(self, weight): self.__weight = weight
+
+    def set_random_weight(self): self.__weight = math.cos(random.random() * math.pi)
 
     def toggle(self): self.__expressed = not self.__expressed
 
