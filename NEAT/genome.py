@@ -250,6 +250,17 @@ class Genome:
             # Add the node to the random connection
             self.add_node(rand_conn.get_innovation_number())
 
+    def mutate_toggle_connection(self):
+        """
+        Randomly selects a connection and toggles its expression.
+
+        If it's enabled, it will become disabled and vice versa.
+        """
+        if len(self.connections) > 0:
+            # Select a random connection and toggle it
+            rand_conn = self.connections[random.randint(0, len(self.connections)-1)]
+            rand_conn.toggle()
+
     def sort_connections(self):
         """
         Sorts the connections to be in feed-forward order.
@@ -356,6 +367,8 @@ class Connection:
     def get_weight(self): return self.__weight
 
     def set_weight(self, weight): self.__weight = weight
+
+    def toggle(self): self.__expressed = not self.__expressed
 
 
 class GenomeError(Exception):

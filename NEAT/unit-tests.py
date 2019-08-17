@@ -285,6 +285,26 @@ class TestGenome(unittest.TestCase):
         g.mutate_add_node()
         self.assertEqual(len(g.nodes), 3, msg)
 
+    def test_mutate_toggle_connection(self):
+        inn_num_gen = innovation_number_generator()
+        inn_num_gen.send(None)
+        g = Genome(1, 1, self.relu, inn_num_gen)
+
+        # Test with one connection
+        g.add_connection(0, 1)
+        g.mutate_toggle_connection()
+        self.assertFalse(g.connections[0].is_expressed())
+        g.mutate_toggle_connection()
+        self.assertTrue(g.connections[0].is_expressed())
+
+        # Test with multiple connections
+        g.add_node(0)
+        before = [c.is_expressed() for c in g.connections]
+        g.mutate_toggle_connection()
+        after = [c.is_expressed() for c in g.connections]
+        self.assertNotEqual(before, after)
+
+
     def test_sort_connections(self):
         inn_num_gen = innovation_number_generator()
         inn_num_gen.send(None)
@@ -380,6 +400,15 @@ class TestConnection(unittest.TestCase):
         c = Connection(0, 0, 2)
         c.set_weight(117)
         self.assertEqual(c.get_weight(), 117)
+
+    def test_toggle(self):
+        # Test to make sure the connection's expression toggles correctly
+        msg = 'Failed to toggle connection\'s expression correctly!'
+        c = Connection(0, 0, 2)
+        c.toggle()
+        self.assertFalse(c.is_expressed())
+        c.toggle()
+        self.assertTrue(c.is_expressed())
 
 
 if __name__ == '__main__':
