@@ -1,10 +1,73 @@
 
 import unittest
-import math
 
 from genome import Genome, Node, Connection, GenomeError
 from ecosystem import innovation_number_generator
 import activations
+
+
+class TestEcosystem(unittest.TestCase):
+    pass
+
+
+class Test_Innovation_Number_Generator(unittest.TestCase):
+    def test_standalone(self):
+        msg = 'Innovation number incorrectly generated!'
+
+        # Test to make sure innovation numbers are always unique
+        inn = innovation_number_generator()
+        inn.send(None)
+        count = 0
+        for i in range(33):
+            for j in range(33):
+                self.assertEqual(inn.send((i, j)), count, msg)
+                count += 1
+
+        self.assertEqual(inn.send((32, 33)), 1089, msg)
+
+        # It should get the same results twice
+        count = 0
+        for i in range(33):
+            for j in range(33):
+                self.assertEqual(inn.send((i, j)), count, msg)
+                count += 1
+
+        self.assertEqual(inn.send((32, 33)), 1089, msg)
+
+    def test_one_genome(self):
+        msg = 'Innovation number incorrectly generated!'
+
+        # Test to make sure innovation numbers are always unique
+        inn = innovation_number_generator()
+        inn.send(None)
+        g = Genome(5, 5, inn)
+
+        for i in range(25):
+            g.mutate_add_connection()
+
+        for i in range(25):
+            self.assertTrue(i in [c.get_innovation_number() for c in g.connections], msg)
+
+    def test_two_genomes(self):
+        msg = 'Innovation number incorrectly generated!'
+
+        # Test to make sure innovation numbers are always unique
+        inn = innovation_number_generator()
+        inn.send(None)
+
+        g1 = Genome(5, 5, inn)
+        g2 = Genome(5, 5, inn)
+
+        for i in range(50):
+            if i % 2 == 0: # Even numbers
+                g1.mutate_add_connection()
+            else:          # Odd numbers
+                g2.mutate_add_connection()
+
+        for i in range(25):
+            self.assertTrue(i in [c.get_innovation_number() for c in g1.connections], msg)
+            self.assertTrue(i in [c.get_innovation_number() for c in g2.connections], msg)
+
 
 
 class TestGenome(unittest.TestCase):
@@ -497,7 +560,6 @@ class TestConnection(unittest.TestCase):
         self.assertFalse(c.is_expressed(), msg)
         c.toggle()
         self.assertTrue(c.is_expressed(), msg)
-
 
 if __name__ == '__main__':
     unittest.main()
