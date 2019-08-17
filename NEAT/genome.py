@@ -276,7 +276,7 @@ class Node:
     __node_type (str): The type of node ('input', 'output', or 'hidden')
     __value (float):   The current value contained in the node (the input for input nodes, the output for output nodes, or the placeholder value for hidden nodes)
     """
-    def __init__(self, id_num, node_type):
+    def __init__(self, id_num, node_type, value=0.0):
         """
         Constructor.
 
@@ -286,7 +286,7 @@ class Node:
         """
         self.__id_num = id_num
         self.__node_type = node_type
-        self.__value = 0.0
+        self.__value = value
 
     def __str__(self):
         return '{0:3d}: {1:6s} {2}'.format(self.__id_num, self.__node_type, self.__value)
@@ -341,9 +341,9 @@ class Connection:
             expressed = 'X'
         return '{0:3d}:{1}-{2} [{4}] {3}'.format(self.__innovation_number, self.__in_node, self.__out_node, self.__weight, expressed)
 
-    def enable(self): self.__expressed = True
-
     def disable(self): self.__expressed = False
+
+    def enable(self): self.__expressed = True
 
     def is_expressed(self): return self.__expressed
 

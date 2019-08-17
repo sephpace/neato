@@ -18,7 +18,7 @@ class TestGenome(unittest.TestCase):
         g = Genome(input_length, output_length, activation, inn_num_gen)
 
         # Test if attributes are correct
-        msg = 'Failed to assign attributes correctly!'
+        msg = 'Failed to assign genome attributes correctly!'
         self.assertEqual(g.input_length, input_length, msg)
         self.assertEqual(g.output_length, output_length, msg)
         self.assertEqual(g.activation, activation, msg)
@@ -164,8 +164,7 @@ class TestGenome(unittest.TestCase):
         self.assertTrue(g.connections_at_max(), msg2)
 
     def test_evaluate(self):
-        ERROR_MARGIN = 0.000000000001
-        approx_equal = lambda num1, num2: num2-ERROR_MARGIN <= num1 <= num2+ERROR_MARGIN
+        error_margin = 0.000000000001
 
         inn_num_gen = innovation_number_generator()
         inn_num_gen.send(None)
@@ -193,7 +192,7 @@ class TestGenome(unittest.TestCase):
         g.add_node(2)
         g.add_connection(4, 5, 0.5)
         results = g.evaluate([0.5, 0.5])
-        self.assertTrue(approx_equal(results[0], 1.07500000000000018), msg)
+        self.assertAlmostEqual(results[0], 1.07500000000000018, msg=msg, delta=error_margin)
         self.assertEqual(results[1], 1.4, msg)
 
     def test_get_node_max_distance(self):
@@ -255,7 +254,7 @@ class TestGenome(unittest.TestCase):
         # Test to make sure it doesn't go above the maximum connections
         msg = 'Connections exceeded maximum amount!'
         g.mutate_add_connection()
-        self.assertEqual(len(g.connections), 4, msg) # Shouldn't go passed 4
+        self.assertEqual(len(g.connections), 4, msg)  # Shouldn't go passed 4
 
     def test_mutate_add_node(self):
         inn_num_gen = innovation_number_generator()
@@ -317,11 +316,70 @@ class TestGenome(unittest.TestCase):
 
 
 class TestNode(unittest.TestCase):
-    pass
+    def test_constructor(self):
+        # Test node attribute values
+        msg = 'Failed to assign node attributes correctly!'
+        n = Node(0, 'input')
+        self.assertEqual(n.get_id(), 0, msg)
+        self.assertEqual(n.get_type(), 'input', msg)
+        self.assertEqual(n.get_value(), 0.0, msg)
+
+        n2 = Node(1, 'output', value=5.4)
+        self.assertEqual(n2.get_id(), 1, msg)
+        self.assertEqual(n2.get_type(), 'output', msg)
+        self.assertEqual(n2.get_value(), 5.4, msg)
+
+        n3 = Node(2, 'hidden', value=-0.3)
+        self.assertEqual(n3.get_id(), 2, msg)
+        self.assertEqual(n3.get_type(), 'hidden', msg)
+        self.assertEqual(n3.get_value(), -0.3, msg)
+
+    def test_set_value(self):
+        # Test to make sure it returns the correct value
+        msg = 'Failed to set node value correctly!'
+        n = Node(0, 'input')
+        n.set_value(39)
+        self.assertEqual(n.get_value(), 39, msg)
 
 
 class TestConnection(unittest.TestCase):
-    pass
+    def test_constructor(self):
+        # Test connection attribute values
+        msg = 'Failed to assign connection attributes correctly!'
+        c = Connection(0, 0, 2)
+        self.assertEqual(c.get_innovation_number(), 0, msg)
+        self.assertEqual(c.get_in_node(), 0, msg)
+        self.assertEqual(c.get_out_node(), 2, msg)
+        self.assertTrue(-1.0 <= c.get_weight() <= 1.0, msg)
+        self.assertTrue(c.is_expressed(), msg)
+
+        c2 = Connection(1, 57, 9, weight=-0.4, expressed=False)
+        self.assertEqual(c2.get_innovation_number(), 1, msg)
+        self.assertEqual(c2.get_in_node(), 57, msg)
+        self.assertEqual(c2.get_out_node(), 9, msg)
+        self.assertEqual(c2.get_weight(), -0.4, msg)
+        self.assertFalse(c2.is_expressed(), msg)
+
+    def test_disable(self):
+        # Test to make sure it returns the correct value
+        msg = 'Failed to disable connection correctly!'
+        c = Connection(0, 0, 2)
+        c.disable()
+        self.assertFalse(c.is_expressed(), msg)
+
+    def test_enable(self):
+        # Test to make sure it returns the correct value
+        msg = 'Failed to enable connection correctly'
+        c = Connection(0, 0, 2, expressed=False)
+        c.enable()
+        self.assertTrue(c.is_expressed(), msg)
+
+    def test_set_weight(self):
+        # Test to make sure it returns the correct value
+        msg = 'Failed to set connection weight correctly!'
+        c = Connection(0, 0, 2)
+        c.set_weight(117)
+        self.assertEqual(c.get_weight(), 117)
 
 
 if __name__ == '__main__':
