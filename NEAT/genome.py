@@ -1,6 +1,5 @@
 
 import random
-import math
 
 
 class Genome:
@@ -60,8 +59,8 @@ class Genome:
         Returns:
         str: The genome's connection data
         """
-        sorted_nodes = sorted(self.nodes, key=lambda n: n.get_id())
-        sorted_connections = sorted(self.connections, key=lambda c: c.get_innovation_number())
+        sorted_nodes = sorted(self.nodes, key=lambda node: node.get_id())
+        sorted_connections = sorted(self.connections, key=lambda conn: conn.get_innovation_number())
         genome_string = '\n-------------Nodes-------------\n'
         for n in sorted_nodes:
             genome_string += str(n) + '\n'
