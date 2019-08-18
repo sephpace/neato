@@ -42,6 +42,7 @@ class Genome:
         self.__nodes = []
         self.__connections = []
         self.__node_id_index = 0
+        self.__fitness = 0
 
         # Add input and output nodes to their respective lists
         for i in range(input_length):
@@ -210,6 +211,8 @@ class Genome:
 
     def get_connections(self): return self.__connections
 
+    def get_fitness(self): return self.__fitness
+
     def get_node(self, node_id):
         """
         Returns the node with the given id.
@@ -320,6 +323,8 @@ class Genome:
             rand_conn.toggle()
 
     def set_connections(self, connections): self.__connections = connections
+
+    def set_fitness(self, fitness): self.__fitness = fitness
 
     def set_nodes(self, nodes): self.__nodes = nodes
 

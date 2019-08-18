@@ -2,15 +2,116 @@
 import unittest
 
 from genome import Genome, Node, Connection, GenomeError
-from ecosystem import innovation_number_generator
+from ecosystem import Ecosystem, innovation_number_generator
 import activations
 
 
 class TestEcosystem(unittest.TestCase):
-    pass
+
+    def test_create_genome(self):
+        e = Ecosystem()
+
+        # Test to make sure it creates the genome correctly
+        msg = 'Genome not created correctly!'
+        e.create_genome(2, 2)
+        self.assertEqual(len(e.get_genomes()), 1, msg)
+        self.assertEqual(len(e.get_genomes()[0].get_nodes()), 4, msg)
+        e.create_genome(2, 3)
+        self.assertEqual(len(e.get_genomes()), 2, msg)
+        self.assertEqual(len(e.get_genomes()[1].get_nodes()), 5)
+        e.create_genome(45, 46)
+        self.assertEqual(len(e.get_genomes()), 3, msg)
+        self.assertEqual(len(e.get_genomes()[2].get_nodes()), 91)
+
+    def test_cross(self):
+        e = Ecosystem()
+
+        # Create genomes
+        e.create_genome(2, 2)
+        e.get_genomes()[0].add_connection(0, 2)
+        e.get_genomes()[0].add_connection(0, 3)
+        e.get_genomes()[0].add_connection(1, 2)
+        e.get_genomes()[0].add_connection(1, 3)
+        e.get_genomes()[0].add_node(0)
+        e.get_genomes()[0].get_connections()[5].set_weight(0.4)
+
+        e.create_genome(2, 2)
+        e.get_genomes()[1].add_connection(0, 2)
+        e.get_genomes()[1].add_connection(0, 3)
+        e.get_genomes()[1].add_connection(1, 2)
+        e.get_genomes()[1].add_connection(1, 3)
+        e.get_genomes()[1].add_node(1)
+
+        e.get_genomes()[0].add_node(2)
+
+        # Assign fitness to genomes
+        g1 = e.get_genomes()[0]
+        g2 = e.get_genomes()[1]
+        g1.set_fitness(10)
+        g2.set_fitness(5)
+
+        # Cross the genomes
+        child = e.cross(g1, g2)
+
+        # Test child connections
+        msg = 'Child connection doesn\'t exist within either parent!'
+        for c in child.get_connections():
+            self.assertTrue(g1.get_connection(c.get_innovation_number()) is not None or g2.get_connection(c.get_innovation_number()) is not None, msg)
+
+        # Test to make sure the child has the same amount of connections as the fitter parent
+        msg = 'Child missing fitter parent connection(s)!'
+        self.assertEqual(len(child.get_connections()), len(g1.get_connections()), msg)
+
+        # Test child nodes
+        msg = 'Child node doesn\'t exist within either parent!'
+        for n in child.get_nodes():
+            self.assertTrue(g1.get_node(n.get_id()) is not None or g2.get_node(n.get_id()) is not None, msg)
+
+        # Test to make sure the child has the same amount of nodes as the fitter parent
+        msg = 'Child is missing fitter parent node(s)!'
+        self.assertEqual(len(child.get_nodes()), len(g1.get_nodes()), msg)
+
+        # Test preference for fit parents
+        msg = 'Child connection preferred less fit parent!'
+        for c in child.get_connections():
+            in_both = g1.get_connection(c.get_innovation_number()) is not None and g2.get_connection(c.get_innovation_number()) is not None
+            in_fit_parent = g1.get_connection(c.get_innovation_number()) is not None and g2.get_connection(c.get_innovation_number()) is None
+            self.assertTrue(in_both or in_fit_parent, msg)
+
+        # Swap the fitness and test again
+        g1.set_fitness(5)
+        g2.set_fitness(10)
+
+        # Cross the genomes
+        child = e.cross(g1, g2)
+
+        # Test child connections
+        msg = 'Child connection doesn\'t exist within either parent!'
+        for c in child.get_connections():
+            self.assertTrue(g1.get_connection(c.get_innovation_number()) is not None or g2.get_connection(c.get_innovation_number()) is not None, msg)
+
+        # Test to make sure the child has the same amount of connections as the fitter parent
+        msg = 'Child missing fitter parent connection(s)!'
+        self.assertEqual(len(child.get_connections()), len(g2.get_connections()), msg)
+
+        # Test child nodes
+        msg = 'Child node doesn\'t exist within either parent!'
+        for n in child.get_nodes():
+            self.assertTrue(g1.get_node(n.get_id()) is not None or g2.get_node(n.get_id()) is not None, msg)
+
+        # Test to make sure the child has the same amount of nodes as the fitter parent
+        msg = 'Child is missing fitter parent node(s)!'
+        self.assertEqual(len(child.get_nodes()), len(g2.get_nodes()), msg)
+
+        # Test preference for fit parents
+        msg = 'Child connection preferred less fit parent!'
+        for c in child.get_connections():
+            in_both = g1.get_connection(c.get_innovation_number()) is not None and g2.get_connection(c.get_innovation_number()) is not None
+            in_fit_parent = g1.get_connection(c.get_innovation_number()) is None and g2.get_connection(c.get_innovation_number()) is not None
+            self.assertTrue(in_both or in_fit_parent, msg)
 
 
-class Test_Innovation_Number_Generator(unittest.TestCase):
+class TestInnovationNumberGenerator(unittest.TestCase):
     def test_standalone(self):
         msg = 'Innovation number incorrectly generated!'
 
@@ -69,7 +170,6 @@ class Test_Innovation_Number_Generator(unittest.TestCase):
             self.assertTrue(i in [c.get_innovation_number() for c in g2.get_connections()], msg)
 
 
-
 class TestGenome(unittest.TestCase):
 
     def test_constructor(self):
@@ -84,6 +184,7 @@ class TestGenome(unittest.TestCase):
         msg = 'Failed to assign genome attributes correctly!'
         self.assertEqual(len(g.get_nodes()), input_length + output_length, msg)
         self.assertEqual(len(g.get_connections()), 0)
+        self.assertEqual(g.get_fitness(), 0)
 
     def test__add_connection(self):
         inn_num_gen = innovation_number_generator()
@@ -425,6 +526,17 @@ class TestGenome(unittest.TestCase):
         connections = [Connection(0, 0, 2), Connection(1, 0, 3), Connection(2, 1, 2), Connection(3, 1, 3)]
         g.set_connections(connections)
         self.assertEqual(g.get_connections(), connections, msg)
+
+    def test_set_fitness(self):
+        inn_num_gen = innovation_number_generator()
+        inn_num_gen.send(None)
+        g = Genome(0, 0, inn_num_gen)
+
+        # Test to make sure fitness is set correctly
+        msg = 'Fitness set incorrectly!'
+        fitness = 50
+        g.set_fitness(fitness)
+        self.assertEqual(g.get_fitness(), fitness, msg)
 
     def test_set_nodes(self):
         inn_num_gen = innovation_number_generator()
