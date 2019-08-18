@@ -2,7 +2,7 @@
 import unittest
 
 from genome import Genome, Node, Connection, GenomeError
-from ecosystem import Ecosystem, innovation_number_generator
+from ecosystem import Ecosystem, Species, innovation_number_generator
 import activations
 
 
@@ -109,6 +109,21 @@ class TestEcosystem(unittest.TestCase):
             in_both = g1.get_connection(c.get_innovation_number()) is not None and g2.get_connection(c.get_innovation_number()) is not None
             in_fit_parent = g1.get_connection(c.get_innovation_number()) is None and g2.get_connection(c.get_innovation_number()) is not None
             self.assertTrue(in_both or in_fit_parent, msg)
+
+
+class TestSpecies(unittest.TestCase):
+    def test_constructor(self):
+        inn = innovation_number_generator()
+        inn.send(None)
+        g = Genome(1, 1, inn)
+        s = Species(0, g)
+
+        # Test to make sure attributes are set correctly.
+        msg = 'Failed to assign species attributes correctly!'
+        self.assertEqual(s.get_id(), 0, msg)
+        self.assertEqual(s.get_representative(), g, msg)
+        self.assertEqual(len(s), 1, msg)
+        self.assertEqual(len(s.get_genomes()), 1, msg)
 
 
 class TestInnovationNumberGenerator(unittest.TestCase):

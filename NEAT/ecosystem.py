@@ -98,6 +98,53 @@ class Ecosystem:
     def get_genomes(self): return self.__genomes
 
 
+class Species:
+    """
+    A list of genomes that have close enough topologies to be considered part of the same species.
+
+    When a species is first created, the first member of the species becomes the representative.
+    All other genomes are compared to the representative before they can enter into the species and
+    only if they are within the threshold.
+
+    Attributes:
+    __id_num (int):            The unique id for the species
+    __representative (Genome): The first genome in the species
+    __genomes (list):          The list of genomes that are a part of the species
+    """
+
+    def __init__(self, id_num, representative):
+        """
+        Constructor.
+
+        Parameters:
+        id_num (int):            The unique id for the species
+        representative (Genome): The first genome in the species
+        genomes (list):          The list of genomes that are a part of the species
+        """
+        self.__id_num = id_num
+        self.__representative = representative
+        self.__genomes = []
+        self.__genomes.append(representative)
+
+    def __getitem__(self, genome_index): return self.__genomes[genome_index]
+
+    def __len__(self): return len(self.__genomes)
+
+    def __setitem__(self, key, value): self.__genomes[key] = value
+
+    def append(self, genome): self.__genomes.append(genome)
+
+    def get_genomes(self): return self.__genomes
+
+    def get_id(self): return self.__id_num
+
+    def get_representative(self): return self.__representative
+
+    def pop(self, genome): return self.__genomes.pop(genome)
+
+    def remove(self, genome): self.__genomes.remove(genome)
+
+
 def innovation_number_generator():
     """
     A generator that given the in node and out node of a connection as a tuple through the send function,
