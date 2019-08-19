@@ -284,19 +284,39 @@ class Genome:
             # Add the node to the random connection
             self.add_node(rand_conn.get_innovation_number())
 
+    def mutate_random(self, mutations=['add_connection', 'add_node', 'random_activation', 'random_weight', 'shift_weight', 'toggle_connection']):
+        """
+        Selects a random mutation and applies it to the genome.
+
+        Parameters:
+        mutations (list): A list of mutation function names to be randomly selected from (default: all of them)
+        """
+        mutation_functions = {
+            'add_connection': self.mutate_add_connection,
+            'add_node': self.mutate_add_node,
+            'random_activation': self.mutate_random_activation,
+            'random_weight': self.mutate_random_weight,
+            'shift_weight': self.mutate_shift_weight,
+            'toggle_connection': self.mutate_toggle_connection
+        }
+        mutation_functions[random.choice(mutations)]()
+
     def mutate_random_activation(self):
         """
         Randomly selects a hidden node and sets its activation to a random function.
         """
-        rand_hidden_node = random.choice([node for node in self.__nodes if node.get_type() == 'hidden'])
-        rand_hidden_node.set_activation(activations.get_random())
+        hidden_nodes = [node for node in self.__nodes if node.get_type() == 'hidden']
+        if len(hidden_nodes) > 0:
+            rand_hidden_node = random.choice(hidden_nodes)
+            rand_hidden_node.set_activation(activations.get_random())
 
     def mutate_random_weight(self):
         """
         Randomly selects a connection and sets its weight to a random value.
         """
-        rand_conn = random.choice(self.__connections)
-        rand_conn.set_random_weight()
+        if len(self.__connections) > 0:
+            rand_conn = random.choice(self.__connections)
+            rand_conn.set_random_weight()
 
     def mutate_shift_weight(self, step=0.1):
         """
