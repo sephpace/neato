@@ -1,5 +1,6 @@
 
 import unittest
+from copy import copy
 
 from genome import Genome, Node, Connection, GenomeError
 from ecosystem import Ecosystem, Species, innovation_number_generator
@@ -25,6 +26,7 @@ class TestEcosystem(unittest.TestCase):
         self.assertEqual(len(e.get_species()), 1, msg)
         self.assertEqual(e.get_species()[0].get_representative(), g, msg)
         self.assertEqual(e.get_species()[0][0], g, msg)
+        self.assertEqual(len(e.get_population()), 1, msg)
 
         # Test to make sure it adds the genome to the same species if they are close
         msg = 'Failed to add genome to species correctly!'
@@ -37,6 +39,7 @@ class TestEcosystem(unittest.TestCase):
         self.assertEqual(len(e.get_species()), 1, msg)
         self.assertEqual(e.get_species()[0].get_representative(), g, msg)
         self.assertEqual(e.get_species()[0][1], g2, msg)
+        self.assertEqual(len(e.get_population()), 2, msg)
 
         # Test to make sure a new species is created if the genome is distant from the current species
         msg = 'Failed to create new species with genome!'
@@ -53,6 +56,131 @@ class TestEcosystem(unittest.TestCase):
         self.assertEqual(len(e.get_species()), 2, msg)
         self.assertEqual(e.get_species()[1].get_representative(), g3, msg)
         self.assertEqual(e.get_species()[1][0], g3, msg)
+        self.assertEqual(len(e.get_population()), 3, msg)
+
+    def test_adjust_fitness(self):
+        msg = 'Adjusted fitness incorrectly!'
+
+        e = Ecosystem(threshold=0.5, disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
+        i = innovation_number_generator()
+        i.send(None)
+
+        # Create genomes
+        g = Genome(2, 2, i)
+        g2 = Genome(2, 2, i)
+        g3 = Genome(2, 2, i)
+
+        # Add connections and/or nodes
+        g.add_connection(0, 2, weight=1.0)
+        g.add_connection(0, 3, weight=1.0)
+        g.add_connection(1, 2, weight=1.0)
+
+        g2.add_connection(0, 2, weight=0.9)
+        g2.add_connection(0, 3, weight=1.0)
+        g2.add_connection(1, 2, weight=1.0)
+        g2.add_connection(1, 3, weight=1.0)
+
+        g3.add_connection(0, 2, weight=0.1)
+        g3.add_connection(0, 3, weight=1.0)
+        g3.add_connection(1, 2, weight=1.0)
+        g3.add_connection(1, 3, weight=1.0)
+        g3.add_node(0)
+        g3.add_node(1)
+        g3.add_node(2)
+        g3.add_connection(0, 6, weight=1.0)
+        g3.add_connection(1, 5, weight=1.0)
+
+        g4 = copy(g3)
+        g4.add_node(3)
+
+        # Set genome fitness
+        g.set_fitness(10)
+        g2.set_fitness(12)
+        g3.set_fitness(22)
+        g4.set_fitness(24)
+
+        # Test to make sure it doesn't change if there are no different genomes
+        e.add_genome(g)
+        e.adjust_fitness(g)
+        self.assertEqual(g.get_fitness(), 10, msg)
+
+        e.add_genome(g2)
+        e.adjust_fitness(g)
+        e.adjust_fitness(g2)
+        self.assertEqual(g.get_fitness(), 10, msg)
+        self.assertEqual(g2.get_fitness(), 12, msg)
+
+        # Test to make sure the fitness does change when there are different genomes
+        e.add_genome(g3)
+        e.add_genome(g4)
+        e.adjust_fitness(g)
+        e.adjust_fitness(g2)
+        e.adjust_fitness(g3)
+        e.adjust_fitness(g4)
+        self.assertEqual(g.get_fitness(), 5, msg)
+        self.assertEqual(g2.get_fitness(), 6, msg)
+        self.assertEqual(g3.get_fitness(), 11, msg)
+        self.assertEqual(g4.get_fitness(), 12, msg)
+
+    def test_adjust_population_fitness(self):
+        msg = 'Adjusted fitness incorrectly!'
+
+        e = Ecosystem(threshold=0.5, disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
+        i = innovation_number_generator()
+        i.send(None)
+
+        # Create genomes
+        g = Genome(2, 2, i)
+        g2 = Genome(2, 2, i)
+        g3 = Genome(2, 2, i)
+
+        # Add connections and/or nodes
+        g.add_connection(0, 2, weight=1.0)
+        g.add_connection(0, 3, weight=1.0)
+        g.add_connection(1, 2, weight=1.0)
+
+        g2.add_connection(0, 2, weight=0.9)
+        g2.add_connection(0, 3, weight=1.0)
+        g2.add_connection(1, 2, weight=1.0)
+        g2.add_connection(1, 3, weight=1.0)
+
+        g3.add_connection(0, 2, weight=0.1)
+        g3.add_connection(0, 3, weight=1.0)
+        g3.add_connection(1, 2, weight=1.0)
+        g3.add_connection(1, 3, weight=1.0)
+        g3.add_node(0)
+        g3.add_node(1)
+        g3.add_node(2)
+        g3.add_connection(0, 6, weight=1.0)
+        g3.add_connection(1, 5, weight=1.0)
+
+        g4 = copy(g3)
+        g4.add_node(3)
+
+        # Set genome fitness
+        g.set_fitness(10)
+        g2.set_fitness(12)
+        g3.set_fitness(22)
+        g4.set_fitness(24)
+
+        # Test to make sure it doesn't change if there are no different genomes
+        e.add_genome(g)
+        e.adjust_population_fitness()
+        self.assertEqual(g.get_fitness(), 10, msg)
+
+        e.add_genome(g2)
+        e.adjust_population_fitness()
+        self.assertEqual(g.get_fitness(), 10, msg)
+        self.assertEqual(g2.get_fitness(), 12, msg)
+
+        # Test to make sure the fitness does change when there are different genomes
+        e.add_genome(g3)
+        e.add_genome(g4)
+        e.adjust_population_fitness()
+        self.assertEqual(g.get_fitness(), 5, msg)
+        self.assertEqual(g2.get_fitness(), 6, msg)
+        self.assertEqual(g3.get_fitness(), 11, msg)
+        self.assertEqual(g4.get_fitness(), 12, msg)
 
     def test_create_genome(self):
         e = Ecosystem()
@@ -159,7 +287,7 @@ class TestEcosystem(unittest.TestCase):
     def test_get_distance(self):
         error_margin = 0.000000000001
 
-        e = Ecosystem()
+        e = Ecosystem(disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
         i = innovation_number_generator()
         i.send(None)
 
@@ -198,6 +326,12 @@ class TestEcosystem(unittest.TestCase):
         self.assertAlmostEqual(e.get_distance(g3, g), 0.84, msg=msg, delta=error_margin)
         self.assertAlmostEqual(e.get_distance(g2, g3), 0.7466666666666666, msg=msg, delta=error_margin)
         self.assertAlmostEqual(e.get_distance(g3, g2), 0.7466666666666666, msg=msg, delta=error_margin)
+
+        # Test to make sure the same genome returns zero when tested against node_to_itself
+        msg = 'Distance between same genomes is not zero!'
+        self.assertEqual(e.get_distance(g, g), 0.0, msg)
+        self.assertEqual(e.get_distance(g2, g2), 0.0, msg)
+        self.assertEqual(e.get_distance(g3, g3), 0.0, msg)
 
 
 class TestSpecies(unittest.TestCase):

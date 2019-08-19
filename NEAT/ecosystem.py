@@ -65,6 +65,28 @@ class Ecosystem:
         self.__species.append(Species(self.__species_id_index, genome))
         self.__species_id_index += 1
 
+    def adjust_fitness(self, genome):
+        """
+        Adjusts the fitness of the given genome to implement explicit fitness sharing.
+
+        This regulates the fitness of each species so that no one species takes over the entire population.
+        """
+        different_count = 0
+        for genome2 in self.get_population():
+            if self.get_distance(genome, genome2) >= self.__threshold:
+                different_count += 1
+        if different_count > 0:
+            genome.set_fitness(genome.get_fitness() / different_count)
+
+    def adjust_population_fitness(self):
+        """
+        Adjusts the fitness of the population to implement explicit fitness sharing.
+
+        This regulates the fitness of each species so that no one species takes over the entire population.
+        """
+        for genome in self.get_population():
+            self.adjust_fitness(genome)
+
     def create_genome(self, input_amt, output_amt):
         """
         Creates a genome and adds it to a species.
@@ -192,6 +214,18 @@ class Ecosystem:
         distance += (excess_count * self.__excess_coefficient / max_connections) if max_connections > 0 else 0.0
         distance += (average_weight * self.__weight_coefficient)
         return distance
+
+    def get_population(self):
+        """
+        Returns a list containing every genome in the population.
+
+        Returns:
+        (list): Every genome in the population
+        """
+        population = []
+        for s in self.__species:
+            population += s.get_genomes()
+        return population
 
     def get_species(self): return self.__species
 
