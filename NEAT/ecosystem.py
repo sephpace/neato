@@ -5,13 +5,76 @@ from genome import Genome
 
 
 class Ecosystem:
-    def __init__(self):
+    """
+    An ecosystem is a regulated group of species.  It has a controlled population of genomes separated into
+    different species based on closeness of topology.
+
+    Species are regulated once per generation.  Roughly fifty percent of each species is killed after a generation
+    is completed.  The other half has an opportunity to breed and create new genomes and possibly new species.
+
+    Attributes:
+    __threshold (float):            The threshold of closeness for two genomes to be considered part of the same species
+    __disjoint_coefficient (float): A coefficient that adjusts the importance of disjoint connections when determining
+                                    genome distance
+    __excess_coefficient (float):   A coefficient that adjusts the importance of excess connections when determining
+                                    genome distance
+    __weight_coefficient (float):   A coefficient that adjusts the importance of the average weight for connections when
+                                    determining genome distance
+    __inn_num_gen (generator):      A generator that assigns innovation numbers to genomes
+    __species (list):               A list of species present in the ecosystem
+    __species_id_index (int):       An id that is incremented with each new species to ensure uniqueness
+    """
+
+    def __init__(self, threshold=0.5, disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4):
+        """
+        Constructor.
+
+        Parameters:
+        threshold (float):            The threshold of closeness for two genomes to be considered part of the same species
+        disjoint_coefficient (float): A coefficient that adjusts the importance of disjoint connections when determining
+                                      genome distance
+        excess_coefficient (float):   A coefficient that adjusts the importance of excess connections when determining
+                                      genome distance
+        weight_coefficient (float):   A coefficient that adjusts the importance of the average weight for connections when
+                                      determining genome distance
+        """
+        self.__threshold = threshold
+        self.__disjoint_coefficient = disjoint_coefficient
+        self.__excess_coefficient = excess_coefficient
+        self.__weight_coefficient = weight_coefficient
         self.__inn_num_gen = innovation_number_generator()
         self.__inn_num_gen.send(None)
-        self.__genomes = []
+        self.__species = []
+        self.__species_id_index = 0
+
+    def add_genome(self, genome):
+        """
+        Adds the given genome to a species in the ecosystem.  If no species exist or the new genome isn't close
+        enough to any that do exist, it creates a new species and sets the new genome as its representative.
+
+        Parameters:
+        genome (Genome): The genome to add to a species in the ecosystem
+        """
+        # Look for a species that the genome fits into and add it if found
+        for species in self.__species:
+            if self.get_distance(genome, species.get_representative()) < self.__threshold:
+                species.add(genome)
+                return
+
+        # Create a new species if it doesn't fit in any of the others (or if there are none)
+        self.__species.append(Species(self.__species_id_index, genome))
+        self.__species_id_index += 1
 
     def create_genome(self, input_amt, output_amt):
-        self.__genomes.append(Genome(input_amt, output_amt, self.__inn_num_gen))
+        """
+        Creates a genome and adds it to a species.
+
+        Parameters:
+        input_amt (int):  The amount of input nodes for the genome
+        output_amt (int): The amount of output nodes for the genome
+        """
+        genome = Genome(input_amt, output_amt, self.__inn_num_gen)
+        self.add_genome(genome)
 
     def cross(self, genome1, genome2):
         """
@@ -33,22 +96,21 @@ class Ecosystem:
             less_fit_parent = genome1
 
         # Combine the genomes
-        more_fit_connections = sorted([c.get_innovation_number() for c in more_fit_parent.get_connections()])
-        less_fit_connections = sorted([c.get_innovation_number() for c in less_fit_parent.get_connections()])
-
         child_nodes = []
         child_connections = []
 
-        # TODO: Find a way to make this look less messy
+        g1_inn_nums = [c.get_innovation_number() for c in genome1.get_connections()]
+        g2_inn_nums = [c.get_innovation_number() for c in genome2.get_connections()]
+        all_inn_nums = set(g1_inn_nums + g2_inn_nums)
 
-        for i in range(max(max(more_fit_connections), max(less_fit_connections)) + 1):
+        for inn_num in all_inn_nums:
             # --- Matching gene for both parents ---
-            if i in more_fit_connections and i in less_fit_connections:
+            if inn_num in more_fit_parent.get_connections() and inn_num in less_fit_parent.get_connections():
                 rand_choice = random.randint(0, 1)
 
                 # More fit parent
                 if rand_choice == 0:
-                    conn = more_fit_parent.get_connection(i)
+                    conn = more_fit_parent.get_connection(inn_num)
 
                     if conn.get_in_node() not in [n.get_id() for n in child_nodes]:
                         child_nodes.append(more_fit_parent.get_node(conn.get_in_node()))
@@ -58,7 +120,7 @@ class Ecosystem:
 
                 # Less fit parent
                 else:
-                    conn = less_fit_parent.get_connection(i)
+                    conn = less_fit_parent.get_connection(inn_num)
 
                     if conn.get_in_node() not in [n.get_id() for n in child_nodes]:
                         child_nodes.append(less_fit_parent.get_node(conn.get_in_node()))
@@ -69,8 +131,8 @@ class Ecosystem:
                 child_connections.append(conn)
 
             # --- Disjoint or excess gene for fit parent ---
-            elif i in more_fit_connections and i not in less_fit_connections:
-                conn = more_fit_parent.get_connection(i)
+            elif inn_num in more_fit_parent.get_connections() and inn_num not in less_fit_parent.get_connections():
+                conn = more_fit_parent.get_connection(inn_num)
 
                 if conn.get_in_node() not in [n.get_id() for n in child_nodes]:
                     child_nodes.append(more_fit_parent.get_node(conn.get_in_node()))
@@ -80,13 +142,9 @@ class Ecosystem:
 
                 child_connections.append(conn)
 
-            # --- Disjoint or excess for less fit parent or gene doesn't exist in either parent ---
-            else:
-                continue
-
         # Sort the nodes and connections
         child_nodes.sort(key=lambda node: node.get_id())
-        child_connections.sort(key=lambda conn: conn.get_innovation_number())
+        child_connections.sort(key=lambda c: c.get_innovation_number())
 
         # Create the child
         child = Genome(0, 0, self.__inn_num_gen)
@@ -95,7 +153,47 @@ class Ecosystem:
 
         return child
 
-    def get_genomes(self): return self.__genomes
+    def get_distance(self, genome1, genome2):
+        # Find the amount of disjoint and excess connections
+        g1_inn_nums = [c.get_innovation_number() for c in genome1.get_connections()]
+        g2_inn_nums = [c.get_innovation_number() for c in genome2.get_connections()]
+        g1_max_inn_num = max(g1_inn_nums) if len(g1_inn_nums) > 0 else 0
+        g2_max_inn_num = max(g2_inn_nums) if len(g2_inn_nums) > 0 else 0
+        all_inn_nums = set(g1_inn_nums + g2_inn_nums)
+
+        matching_count = 0
+        disjoint_count = 0
+        excess_count = 0
+        weight_difference_sum = 0.0
+
+        for inn_num in all_inn_nums:
+            if inn_num in genome1.get_connections() and inn_num in genome2.get_connections():
+                matching_count += 1
+                weight_difference_sum += abs(genome1.get_connection(inn_num).get_weight() - genome2.get_connection(inn_num).get_weight())
+            elif inn_num in genome1.get_connections() and inn_num not in genome2.get_connections():
+                if inn_num < g2_max_inn_num:
+                    disjoint_count += 1
+                elif inn_num > g2_max_inn_num:
+                    excess_count += 1
+            elif inn_num not in genome1.get_connections() and inn_num in genome2.get_connections():
+                if inn_num < g1_max_inn_num:
+                    disjoint_count += 1
+                elif inn_num > g1_max_inn_num:
+                    excess_count += 1
+
+        # Find the average weight difference for matching genes
+        average_weight = weight_difference_sum / matching_count if matching_count > 0 else 0.0
+
+        # Find the max connections
+        max_connections = max(len(genome1.get_connections()), len(genome2.get_connections()))
+
+        # Find and return the distance
+        distance = (disjoint_count * self.__disjoint_coefficient / max_connections) if max_connections > 0 else 0.0
+        distance += (excess_count * self.__excess_coefficient / max_connections) if max_connections > 0 else 0.0
+        distance += (average_weight * self.__weight_coefficient)
+        return distance
+
+    def get_species(self): return self.__species
 
 
 class Species:
@@ -124,7 +222,7 @@ class Species:
         self.__id_num = id_num
         self.__representative = representative
         self.__genomes = []
-        self.__genomes.append(representative)
+        self.add(representative)
 
     def __getitem__(self, genome_index): return self.__genomes[genome_index]
 
@@ -132,7 +230,7 @@ class Species:
 
     def __setitem__(self, key, value): self.__genomes[key] = value
 
-    def append(self, genome): self.__genomes.append(genome)
+    def add(self, genome): self.__genomes.append(genome)
 
     def get_genomes(self): return self.__genomes
 

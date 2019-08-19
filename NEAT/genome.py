@@ -24,7 +24,7 @@ class Genome:
     __inn_num_gen (generator):       The innovation number generator used to assign innovation numbers to connections
     __nodes (list):                  The list of nodes in the genome
     __connections (list):            The list of connections in the genome
-    __node_id_index (int):           A number that is incremented with each new node to ensure id uniqueness
+    __node_id_index (int):           An id that is incremented with each new node to ensure uniqueness
     """
 
     def __init__(self, input_length, output_length, inn_num_gen):
@@ -375,6 +375,14 @@ class Node:
             self.__activation = activation
         self.__value = value
 
+    def __eq__(self, node):
+        if isinstance(node, Node):
+            return node.get_id() == self.__id_num
+        elif isinstance(node, int):
+            return node == self.__id_num
+        else:
+            return False
+
     def __str__(self):
         return '{0:3d}: {1:6s} {2}'.format(self.__id_num, self.__node_type, self.__value)
 
@@ -436,7 +444,12 @@ class Connection:
         self.__expressed = expressed
 
     def __eq__(self, conn):
-        return conn.get_innovation_number() == self.__innovation_number
+        if isinstance(conn, Connection):
+            return conn.get_innovation_number() == self.__innovation_number
+        elif isinstance(conn, int):
+            return conn == self.__innovation_number
+        else:
+            return False
 
     def __str__(self):
         if self.__expressed:
