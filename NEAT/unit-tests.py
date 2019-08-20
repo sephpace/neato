@@ -1,5 +1,6 @@
 
 import unittest
+import random
 from copy import copy
 
 from genome import Genome, Node, Connection, GenomeError
@@ -241,7 +242,7 @@ class TestEcosystem(unittest.TestCase):
 
         # Test to make sure mutations work
         msg = 'Failed to mutate initial population!'
-        e.create_initial_population(30, parent_genome=parent)
+        e.create_initial_population(100, parent_genome=parent)
         some_mutated = False
         for g in e.get_population():
             if g != parent:
@@ -399,6 +400,124 @@ class TestEcosystem(unittest.TestCase):
         self.assertEqual(e.get_distance(g, g), 0.0, msg)
         self.assertEqual(e.get_distance(g2, g2), 0.0, msg)
         self.assertEqual(e.get_distance(g3, g3), 0.0, msg)
+
+    def test_kill(self):
+        e = Ecosystem()
+
+        # Test to make sure the genomes are successfully killed
+        msg = 'Genome not killed!'
+        for i in range(10):
+            e.create_genome(2, 2)
+
+        for g in e.get_population():
+            e.kill(g)
+
+        self.assertEqual(len(e.get_population()), 0, msg)
+
+        # Test to make sure the species is removed if all its members are killed
+        msg = 'Species not removed!'
+        self.assertEqual(len(e.get_species()), 0, msg)
+
+    def test_kill_percentage(self):
+        e = Ecosystem(disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
+        i = innovation_number_generator()
+        i.send(None)
+
+        # Create genomes
+        g = Genome(2, 2, i)
+        g2 = Genome(2, 2, i)
+        g3 = Genome(2, 2, i)
+
+        # Add connections and/or nodes
+        g.add_connection(0, 2, weight=1.0)
+        g.add_connection(0, 3, weight=1.0)
+        g.add_connection(1, 2, weight=1.0)
+
+        g2.add_connection(0, 2, weight=0.9)
+        g2.add_connection(0, 3, weight=1.0)
+        g2.add_connection(1, 2, weight=1.0)
+        g2.add_connection(1, 3, weight=1.0)
+
+        g3.add_connection(0, 2, weight=0.1)
+        g3.add_connection(0, 3, weight=1.0)
+        g3.add_connection(1, 2, weight=1.0)
+        g3.add_connection(1, 3, weight=1.0)
+        g3.add_node(0)
+        g3.add_node(1)
+        g3.add_node(2)
+        g3.add_connection(0, 6, weight=1.0)
+        g3.add_connection(1, 5, weight=1.0)
+
+        g.add_node(1)
+
+        # Test to make sure the correct amount are killed
+        msg = 'Incorrect percentage killed!'
+        for i in range(10):
+            g_copy = g.copy()
+            g2_copy = g2.copy()
+            g3_copy = g3.copy()
+
+            g_copy.set_fitness(random.randrange(0, 200))
+            g2_copy.set_fitness(random.randrange(0, 200))
+            g3_copy.set_fitness(random.randrange(0, 200))
+
+            e.add_genome(g_copy)
+            e.add_genome(g2_copy)
+            e.add_genome(g3_copy)
+
+        e.kill_percentage(50)
+        for s in e.get_species():
+            self.assertAlmostEqual(len(s.get_genomes()), 5, msg=msg, delta=1)
+        self.assertAlmostEqual(len(e.get_population()), 15, msg=msg, delta=1)
+
+        for i in range(5):
+            g_copy = g.copy()
+            g2_copy = g2.copy()
+            g3_copy = g3.copy()
+
+            g_copy.set_fitness(random.randrange(0, 200))
+            g2_copy.set_fitness(random.randrange(0, 200))
+            g3_copy.set_fitness(random.randrange(0, 200))
+
+            e.add_genome(g_copy)
+            e.add_genome(g2_copy)
+            e.add_genome(g3_copy)
+
+        e.kill_percentage(25)
+        for s in e.get_species():
+            self.assertAlmostEqual(len(s.get_genomes()), 8, msg=msg, delta=1)
+        self.assertAlmostEqual(len(e.get_population()), 24, msg=msg, delta=1)
+
+        for i in range(2):
+            g_copy = g.copy()
+            g2_copy = g2.copy()
+            g3_copy = g3.copy()
+
+            g_copy.set_fitness(random.randrange(0, 200))
+            g2_copy.set_fitness(random.randrange(0, 200))
+            g3_copy.set_fitness(random.randrange(0, 200))
+
+            e.add_genome(g_copy)
+            e.add_genome(g2_copy)
+            e.add_genome(g3_copy)
+
+        e.kill_percentage(75)
+        for s in e.get_species():
+            self.assertAlmostEqual(len(s.get_genomes()), 3, msg=msg, delta=1)
+        self.assertAlmostEqual(len(e.get_population()), 9, msg=msg, delta=1)
+
+        e.kill_percentage(12)
+        for s in e.get_species():
+            self.assertAlmostEqual(len(s.get_genomes()), 3, msg=msg, delta=1)
+        self.assertAlmostEqual(len(e.get_population()), 9, msg=msg, delta=1)
+
+        # Test with a larger population
+        e.create_initial_population(100, parent_genome=g)
+        e.add_genome(g2.copy())
+        e.add_genome(g3.copy())
+
+        e.kill_percentage(90)
+        self.assertAlmostEqual(len(e.get_population()), 12, msg=msg, delta=3)
 
 
 class TestSpecies(unittest.TestCase):

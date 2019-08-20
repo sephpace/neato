@@ -268,6 +268,43 @@ class Ecosystem:
 
     def get_species(self): return self.__species
 
+    def kill(self, genome):
+        """
+        Removes the genome from the gene pool.
+
+        Parameters:
+        genome (Genome): The genome to kill
+        """
+        for species in self.__species:
+            if genome in species:
+                species.remove(genome)
+
+                # Remove the species if it contains no genomes
+                if len(species.get_genomes()) == 0:
+                    self.__species.remove(species)
+
+                break
+
+    def kill_percentage(self, percentage):
+        """
+        Kills the given percentage of the members of each species (approximately).
+
+        Genomes are killed in order of fitness (lowest to highest)
+
+        Will round down if inexact.
+
+        Parameters:
+        percentage (float): The maximum percentage of genomes that will be killed in each species
+        """
+        for species in self.__species:
+            species.sort(key=lambda g: g.get_fitness())
+            amt_killed = 0
+            start_amt = len(species.get_genomes())
+            while (amt_killed / start_amt) * 100 <= percentage - (1 / start_amt) * 100:
+                species.remove(species.get_genomes()[0])
+                amt_killed += 1
+
+
 
 class Species:
     """
@@ -314,6 +351,8 @@ class Species:
     def pop(self, genome): return self.__genomes.pop(genome)
 
     def remove(self, genome): self.__genomes.remove(genome)
+
+    def sort(self, key, reverse=False): self.__genomes.sort(key=key, reverse=reverse)
 
 
 def innovation_number_generator():
