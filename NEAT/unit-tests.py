@@ -3,7 +3,7 @@ import unittest
 from copy import copy
 
 from genome import Genome, Node, Connection, GenomeError
-from ecosystem import Ecosystem, Species, innovation_number_generator
+from ecosystem import Ecosystem, Species, innovation_number_generator, EcosystemError
 import activations
 
 
@@ -181,6 +181,73 @@ class TestEcosystem(unittest.TestCase):
         self.assertEqual(g2.get_fitness(), 6, msg)
         self.assertEqual(g3.get_fitness(), 11, msg)
         self.assertEqual(g4.get_fitness(), 12, msg)
+
+    def test_create_initial_population(self):
+        e = Ecosystem()
+
+        # Test to make sure it catches invalid parameters
+        msg = 'Invalid parameters!'
+        no_size = False
+        try:
+            e.create_initial_population(input_length=3, output_length=3)
+        except TypeError:
+            no_size = True
+        self.assertTrue(no_size, msg)
+
+        no_parent = False
+        try:
+            e.create_initial_population(20)
+        except EcosystemError:
+            no_parent = True
+        self.assertTrue(no_parent, msg)
+
+        no_input = False
+        try:
+            e.create_initial_population(20, output_length=3)
+        except EcosystemError:
+            no_input = True
+        self.assertTrue(no_input, msg)
+
+        no_output = False
+        try:
+            e.create_initial_population(20, input_length=3)
+        except EcosystemError:
+            no_output = True
+        self.assertTrue(no_output, msg)
+
+        # Test to make sure an inital population is created with input and output sizes
+        msg = 'Failed to create initial population correctly!'
+        e.create_initial_population(20, input_length=3, output_length=3)
+        self.assertEqual(len(e.get_population()), 20, msg)
+        for g in e.get_population():
+            input_count = 0
+            output_count = 0
+            for n in g.get_nodes():
+                if n.get_type() == 'input':
+                    input_count += 1
+                elif n.get_type() == 'output':
+                    output_count += 1
+            self.assertEqual(input_count, 3, msg)
+            self.assertEqual(output_count, 3, msg)
+
+        # Test to make sure an initial population is created with a parent genome
+        inn = innovation_number_generator()
+        inn.send(None)
+        parent = Genome(2, 3, inn)
+        e.create_initial_population(15, parent_genome=parent, mutate=False)
+        self.assertEqual(len(e.get_population()), 15, msg)
+        for g in e.get_population():
+            self.assertEqual(g, parent, msg)
+
+        # Test to make sure mutations work
+        msg = 'Failed to mutate initial population!'
+        e.create_initial_population(30, parent_genome=parent)
+        some_mutated = False
+        for g in e.get_population():
+            if g != parent:
+                some_mutated = True
+                break
+        self.assertTrue(some_mutated, msg)
 
     def test_create_genome(self):
         e = Ecosystem()
@@ -452,7 +519,7 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(g.get_connections()[3].get_out_node(), 3, msg)
         self.assertEqual(g.get_connections()[3].get_weight(), 0.5, msg)
 
-        # Test connecting to hidden nodes
+        # # Test connecting to hidden nodes
         msg = 'Failed connection to hidden node!'
         g.add_node(0)
         g.add_connection(1, 4, 0.7)
@@ -569,6 +636,30 @@ class TestGenome(unittest.TestCase):
         g.add_connection(5, 3)
         self.assertTrue(g.connections_at_max(), msg2)
 
+    def test_copy(self):
+        inn_num_gen = innovation_number_generator()
+        inn_num_gen.send(None)
+        g = Genome(2, 2, inn_num_gen)
+
+        # Test to make sure the copy is the same as the original
+        msg = 'Copy is different from the original!'
+        g.add_connection(0, 2)
+        g.add_connection(0, 3)
+        g.add_node(0)
+        gc = g.copy()
+        self.assertEqual(len(g.get_nodes()), len(gc.get_nodes()), msg)
+        self.assertEqual(len(g.get_connections()), len(gc.get_connections()), msg)
+        for i in range(len(g.get_connections())):
+            self.assertEqual(g.get_connections()[i].get_weight(), gc.get_connections()[i].get_weight(), msg)
+
+        # Test to make sure the copy doesn't change when the original does
+        msg = 'Copy changes when original changes!'
+        g.add_node(1)
+        g.get_connections()[0].set_weight(50)
+        self.assertNotEqual(len(g.get_nodes()), len(gc.get_nodes()), msg)
+        self.assertNotEqual(len(g.get_connections()), len(gc.get_connections()), msg)
+        self.assertNotEqual(g.get_connections()[0].get_weight(), gc.get_connections()[0].get_weight(), msg)
+
     def test_evaluate(self):
         error_margin = 0.000000000001
 
@@ -602,11 +693,45 @@ class TestGenome(unittest.TestCase):
         self.assertAlmostEqual(results[0], 0.08953579350695234, msg=msg, delta=error_margin)
         self.assertAlmostEqual(results[1], 0.4, msg=msg, delta=error_margin)
 
+    def test_get_node_inputs(self):
+        inn_num_gen = innovation_number_generator()
+        inn_num_gen.send(None)
+        g = Genome(2, 2, inn_num_gen)
+
+        g.add_connection(0, 2)
+        g.add_connection(0, 3)
+        g.add_connection(1, 2)
+
+        # Test to make sure it gets the inputs correctly
+        msg = 'Node inputs are incorrect!'
+        self.assertEqual(g.get_node_inputs(2), [0, 1], msg)
+        self.assertEqual(g.get_node_inputs(3), [0], msg)
+
+    def test_get_node_outputs(self):
+        inn_num_gen = innovation_number_generator()
+        inn_num_gen.send(None)
+        g = Genome(2, 2, inn_num_gen)
+
+        g.add_connection(0, 2)
+        g.add_connection(0, 3)
+        g.add_connection(1, 2)
+
+        # Test to make sure it gets the outputs correctly
+        msg = 'Node outputs are incorrect!'
+        self.assertEqual(g.get_node_outputs(0), [2, 3], msg)
+        self.assertEqual(g.get_node_outputs(1), [2], msg)
+
     def test_get_node_max_distance(self):
         inn_num_gen = innovation_number_generator()
         inn_num_gen.send(None)
         g = Genome(2, 2, inn_num_gen)
 
+        # Test to make sure empty genomes return the correct values for output nodes
+        msg = 'Disconnected output node returned invalid value!'
+        self.assertEqual(g.get_node_max_distance(g.get_node(2)), -1, msg)
+        self.assertEqual(g.get_node_max_distance(g.get_node(3)), -1, msg)
+
+        # Add nodes and connections
         g.add_connection(0, 2, weight=-0.7)
         g.add_connection(0, 3, weight=-0.1)
         g.add_connection(1, 2, weight=0.5)
@@ -850,6 +975,25 @@ class TestNode(unittest.TestCase):
         n2.activate()
         self.assertEqual(n2.get_value(), 1.0, msg)
 
+    def test_copy(self):
+        n = Node(0, 'hidden')
+        nc = n.copy()
+
+        # Test to make sure the copies are the same
+        msg = 'Copy is not the same as the original!'
+        self.assertEqual(n, nc, msg)
+        self.assertEqual(n.get_id(), nc.get_id(), msg)
+        self.assertEqual(n.get_type(), nc.get_type(), msg)
+        self.assertEqual(n.get_activation(), nc.get_activation(), msg)
+        self.assertEqual(n.get_value(), nc.get_value(), msg)
+
+        # Test to make sure the copy doesn't change if the original does
+        msg = 'Copy changed when the original was changed!'
+        n.set_activation(activations.absolute)
+        n.set_value(50)
+        self.assertNotEqual(n.get_activation(), nc.get_activation(), msg)
+        self.assertNotEqual(n.get_value(), nc.get_value(), msg)
+
     def test_set_activation(self):
         # Test to make sure it returns the correct value
         msg = 'Failed to set node activation correctly!'
@@ -888,6 +1032,26 @@ class TestConnection(unittest.TestCase):
         self.assertEqual(c2.get_out_node(), 9, msg)
         self.assertEqual(c2.get_weight(), -0.4, msg)
         self.assertFalse(c2.is_expressed(), msg)
+
+    def test_copy(self):
+        c = Connection(0, 0, 2)
+        cc = c.copy()
+
+        # Test to make sure the copies are the same
+        msg = 'Copy is not the same as the original!'
+        self.assertEqual(c, cc, msg)
+        self.assertEqual(c.get_innovation_number(), cc.get_innovation_number(), msg)
+        self.assertEqual(c.get_in_node(), cc.get_in_node(), msg)
+        self.assertEqual(c.get_out_node(), cc.get_out_node(), msg)
+        self.assertEqual(c.get_weight(), cc.get_weight(), msg)
+        self.assertEqual(c.is_expressed(), cc.is_expressed(), msg)
+
+        # Test to make sure the copy doesn't change if the original does
+        msg = 'Copy changed when the original was changed!'
+        c.set_weight(50)
+        c.disable()
+        self.assertNotEqual(c.get_weight(), cc.get_weight(), msg)
+        self.assertNotEqual(c.is_expressed(), cc.is_expressed(), msg)
 
     def test_disable(self):
         # Test to make sure it returns the correct value

@@ -53,6 +53,9 @@ class Genome:
             self.__nodes.append(Node(self.__node_id_index, 'output'))
             self.__node_id_index += 1
 
+    def __eq__(self, genome):
+        return self.__nodes == genome.get_nodes() and self.__connections == genome.get_connections()
+
     def __str__(self):
         """
         Represent the genome's node and connection data as a string.
@@ -132,14 +135,18 @@ class Genome:
             raise GenomeError('Connection with innovation number {0} does not exist within genome!'.format(innovation_number))
         conn.disable()
 
+        while self.get_node(self.__node_id_index) is not None:
+            self.__node_id_index += 1
+
+        # Create the node
+        self.__nodes.append(Node(self.__node_id_index, 'hidden', activation=activation))
+
         # Create new connections to add in place of the disabled connection
         conn_id_1 = self.__inn_num_gen.send((self.__node_id_index, conn.get_out_node()))
         conn_id_2 = self.__inn_num_gen.send((conn.get_in_node(), self.__node_id_index))
         self.__connections.append(Connection(conn_id_1, self.__node_id_index, conn.get_out_node(), weight=conn.get_weight()))
         self.__connections.append(Connection(conn_id_2, conn.get_in_node(), self.__node_id_index, weight=1.0))
 
-        # Create the node
-        self.__nodes.append(Node(self.__node_id_index, 'hidden', activation=activation))
         self.__node_id_index += 1
 
     def connections_at_max(self):
@@ -158,6 +165,24 @@ class Genome:
         else:
             at_max = len(self.__connections) == (input_amt * output_amt) + (input_amt * hidden_amt) + (hidden_amt * output_amt) + (hidden_amt - 1)
         return at_max
+
+    def copy(self):
+        """
+        Returns a copy of the genome.
+
+        Returns:
+        (Genome): A copy of the genome
+        """
+        genome_copy = Genome(self.__input_length, self.__output_length, self.__inn_num_gen)
+        node_copies = []
+        conn_copies = []
+        for node in self.__nodes:
+            node_copies.append(node.copy())
+        for conn in self.__connections:
+            conn_copies.append(conn.copy())
+        genome_copy.set_nodes(node_copies)
+        genome_copy.set_connections(conn_copies)
+        return genome_copy
 
     def evaluate(self, inputs):
         """
@@ -227,6 +252,38 @@ class Genome:
             if node.get_id() == node_id:
                 return node
 
+    def get_node_inputs(self, node):
+        """
+        Returns every node that is connected to the given node as an input.
+
+        Parameters:
+        node (int): The id of the node to get the inputs for
+
+        Returns:
+        (list): A list of id's for every node that is connected to the given node as an input
+        """
+        node_inputs = []
+        for c in self.__connections:
+            if c.get_out_node() == node:
+                node_inputs.append(c.get_in_node())
+        return node_inputs
+
+    def get_node_outputs(self, node):
+        """
+        Returns every node that is connected to the given node as an output.
+
+        Parameters:
+        node (int): The id of the node to get the outputs for
+
+        Returns:
+        (list): A list of id's for every node that is connected to the given node as an output
+        """
+        node_outputs = []
+        for c in self.__connections:
+            if c.get_in_node() == node:
+                node_outputs.append(c.get_out_node())
+        return node_outputs
+
     def get_nodes(self): return self.__nodes
 
     def get_node_max_distance(self, node):
@@ -234,6 +291,8 @@ class Genome:
         Returns the maximum distance of the given node from an input node.
 
         Calculated recursively.
+
+        If node does not connect to an input node, -1 is returned
 
         Parameters:
         node (int): The id of the node to test the distance for
@@ -243,12 +302,17 @@ class Genome:
         """
         if self.get_node(node).get_type() == 'input':
             return 0
-        else:
-            distances = []
-            for c in self.__connections:
-                if c.get_out_node() == node:
-                    distances.append(self.get_node_max_distance(c.get_in_node()) + 1)
-            return max(distances)
+
+        node_inputs = self.get_node_inputs(node)
+
+        if len(node_inputs) == 0:
+            return -1
+
+        distances = []
+        for n in node_inputs:
+            distances.append(self.get_node_max_distance(n) + 1)
+
+        return max(distances)
 
     def mutate_add_connection(self):
         """
@@ -284,7 +348,7 @@ class Genome:
             # Add the node to the random connection
             self.add_node(rand_conn.get_innovation_number())
 
-    def mutate_random(self, mutations=['add_connection', 'add_node', 'random_activation', 'random_weight', 'shift_weight', 'toggle_connection']):
+    def mutate_random(self, mutations=('add_connection', 'add_node', 'random_activation', 'random_weight', 'shift_weight', 'toggle_connection')):
         """
         Selects a random mutation and applies it to the genome.
 
@@ -413,6 +477,15 @@ class Node:
         if self.__activation is not None:
             self.__value = self.__activation(self.__value)
 
+    def copy(self):
+        """
+        Returns a copy of the node.
+
+        Returns:
+        (Node): A copy of the node
+        """
+        return Node(self.__id_num, self.__node_type, self.__activation, self.__value)
+
     def get_activation(self): return self.__activation
 
     def get_id(self): return self.__id_num
@@ -463,6 +536,9 @@ class Connection:
             self.set_random_weight()
         self.__expressed = expressed
 
+    def __contains__(self, node):
+        return self.__in_node == node or self.__out_node == node
+
     def __eq__(self, conn):
         if isinstance(conn, Connection):
             return conn.get_innovation_number() == self.__innovation_number
@@ -477,6 +553,15 @@ class Connection:
         else:
             expressed = 'X'
         return '{0:3d}:{1}-{2} [{4}] {3}'.format(self.__innovation_number, self.__in_node, self.__out_node, self.__weight, expressed)
+
+    def copy(self):
+        """
+        Returns a copy of the connection.
+
+        Returns:
+        (Connection): A copy of the connection
+        """
+        return Connection(self.__innovation_number, self.__in_node, self.__out_node, self.__weight, self.__expressed)
 
     def disable(self): self.__expressed = False
 

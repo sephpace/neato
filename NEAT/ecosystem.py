@@ -98,6 +98,49 @@ class Ecosystem:
         genome = Genome(input_amt, output_amt, self.__inn_num_gen)
         self.add_genome(genome)
 
+    def create_initial_population(self, population_size, parent_genome=None, input_length=None, output_length=None, mutate=True):
+        """
+        Creates an initial population of genomes with the given parent genome or input and output lengths.
+
+        The size of the initial populations is equal to the given population size.
+
+        Parent genomes take precedence over input and output lengths.
+
+        If the ecosystem contains genomes already, they will be replaced.
+
+        Parameters:
+        population_size (int):  The amount of genomes in the initial population
+        parent_genome (Genome): An optional genome to base the rest of the population on
+        input_length (int):     The amount of input nodes for each genome in the population
+        output_length (int):    The amount of output nodes for each genome in the population
+        mutate (bool):          If True, each newly created genome will be given a random mutation
+        """
+        # Determine how to create genomes
+        if parent_genome is not None:
+            from_parent = True
+        elif input_length is not None and output_length is not None:
+            from_parent = False
+        elif input_length is None and output_length is None:
+            raise EcosystemError('No input and output length or parent genome specified!')
+        elif input_length is not None and output_length is None:
+            raise EcosystemError('No output length specified!')
+        elif input_length is None and output_length is not None:
+            raise EcosystemError('No input length specified!')
+        else:
+            raise EcosystemError('A problem occurred while creating initial population!')
+
+        # Create the initial population
+        self.__species.clear()
+        for i in range(population_size):
+            if from_parent:
+                g = parent_genome.copy()
+            else:
+                g = Genome(input_length, output_length, self.__inn_num_gen)
+            if mutate:
+                g.mutate_random()
+            self.add_genome(g)
+
+
     def cross(self, genome1, genome2):
         """
         Returns a combination of the two given genomes.
@@ -294,3 +337,8 @@ def innovation_number_generator():
         else:
             inn_log.append(conn)
             inn_num = len(inn_log) - 1
+
+
+class EcosystemError(Exception):
+    def __init__(self, message):
+        self.message = message
