@@ -24,7 +24,6 @@ class Genome:
     __inn_num_gen (generator):       The innovation number generator used to assign innovation numbers to connections
     __nodes (list):                  The list of nodes in the genome
     __connections (list):            The list of connections in the genome
-    __node_id_index (int):           An id that is incremented with each new node to ensure uniqueness
     """
 
     def __init__(self, input_length, output_length, inn_num_gen):
@@ -41,17 +40,14 @@ class Genome:
         self.__inn_num_gen = inn_num_gen
         self.__nodes = []
         self.__connections = []
-        self.__node_id_index = 0
         self.__fitness = 0
 
         # Add input and output nodes to their respective lists
         for i in range(input_length):
-            self.__nodes.append(Node(self.__node_id_index, 'input'))
-            self.__node_id_index += 1
+            self.__nodes.append(Node(len(self.__nodes), 'input'))
 
         for i in range(output_length):
-            self.__nodes.append(Node(self.__node_id_index, 'output'))
-            self.__node_id_index += 1
+            self.__nodes.append(Node(len(self.__nodes), 'output'))
 
     def __eq__(self, genome):
         return self.__nodes == genome.get_nodes() and self.__connections == genome.get_connections()
@@ -135,19 +131,15 @@ class Genome:
             raise GenomeError('Connection with innovation number {0} does not exist within genome!'.format(innovation_number))
         conn.disable()
 
-        while self.get_node(self.__node_id_index) is not None:
-            self.__node_id_index += 1
-
         # Create the node
-        self.__nodes.append(Node(self.__node_id_index, 'hidden', activation=activation))
+        node_id = len(self.__nodes)
+        self.__nodes.append(Node(node_id, 'hidden', activation=activation))
 
         # Create new connections to add in place of the disabled connection
-        conn_id_1 = self.__inn_num_gen.send((self.__node_id_index, conn.get_out_node()))
-        conn_id_2 = self.__inn_num_gen.send((conn.get_in_node(), self.__node_id_index))
-        self.__connections.append(Connection(conn_id_1, self.__node_id_index, conn.get_out_node(), weight=conn.get_weight()))
-        self.__connections.append(Connection(conn_id_2, conn.get_in_node(), self.__node_id_index, weight=1.0))
-
-        self.__node_id_index += 1
+        conn_id_1 = self.__inn_num_gen.send((node_id, conn.get_out_node()))
+        conn_id_2 = self.__inn_num_gen.send((conn.get_in_node(), node_id))
+        self.__connections.append(Connection(conn_id_1, node_id, conn.get_out_node(), weight=conn.get_weight()))
+        self.__connections.append(Connection(conn_id_2, conn.get_in_node(), node_id, weight=1.0))
 
     def connections_at_max(self):
         """

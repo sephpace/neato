@@ -22,7 +22,6 @@ class Ecosystem:
                                     determining genome distance
     __inn_num_gen (generator):      A generator that assigns innovation numbers to genomes
     __species (list):               A list of species present in the ecosystem
-    __species_id_index (int):       An id that is incremented with each new species to ensure uniqueness
     """
 
     def __init__(self, threshold=0.5, disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4):
@@ -45,7 +44,6 @@ class Ecosystem:
         self.__inn_num_gen = innovation_number_generator()
         self.__inn_num_gen.send(None)
         self.__species = []
-        self.__species_id_index = 0
 
     def add_genome(self, genome):
         """
@@ -62,8 +60,7 @@ class Ecosystem:
                 return
 
         # Create a new species if it doesn't fit in any of the others (or if there are none)
-        self.__species.append(Species(self.__species_id_index, genome))
-        self.__species_id_index += 1
+        self.__species.append(Species(len(self.__species), genome))
 
     def adjust_fitness(self, genome):
         """
@@ -139,7 +136,6 @@ class Ecosystem:
             if mutate:
                 g.mutate_random()
             self.add_genome(g)
-
 
     def cross(self, genome1, genome2):
         """
