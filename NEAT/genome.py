@@ -629,4 +629,4 @@ def load(path):
     Parameters:
     The path to the file containing a pickled genome
     """
-    pickle.load(open(path, 'rb'))
+    return pickle.load(open(path, 'rb'))
