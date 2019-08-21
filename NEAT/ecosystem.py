@@ -21,7 +21,8 @@ class Ecosystem:
     __weight_coefficient (float):   A coefficient that adjusts the importance of the average weight for connections when
                                     determining genome distance
     __species (list):               A list of species present in the ecosystem
-    __connection_log (dict):         A set of existing connections within the ecosystem used to assign unique innovation numbers
+    __generation (int):             The current generation number
+    __connection_log (dict):        A set of existing connections within the ecosystem used to assign unique innovation numbers
     """
 
     def __init__(self, threshold=0.5, disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4):
@@ -42,6 +43,7 @@ class Ecosystem:
         self.__excess_coefficient = excess_coefficient
         self.__weight_coefficient = weight_coefficient
         self.__species = []
+        self.__generation = 0
         self.__connection_log = {}
 
     def add_genome(self, genome):
@@ -255,6 +257,8 @@ class Ecosystem:
         distance += (average_weight * self.__weight_coefficient)
         return distance
 
+    def get_generation(self): return self.__generation
+
     def get_innovation_number(self, in_node, out_node):
         """
         Returns the innovation number for a connection with the given input and output.
@@ -315,7 +319,11 @@ class Ecosystem:
 
         Parameters:
         percentage (float): The maximum percentage of genomes that will be killed in each species
+
+        Returns:
+        (int): The total amount of genomes that were killed
         """
+        total_killed = 0
         for species in self.__species:
             species.sort(key=lambda g: g.get_fitness())
             amt_killed = 0
@@ -323,6 +331,52 @@ class Ecosystem:
             while (amt_killed / start_amt) * 100 <= percentage - (1 / start_amt) * 100:
                 species.remove(species.get_genomes()[0])
                 amt_killed += 1
+                total_killed += 1
+        return total_killed
+
+    def next_generation(self, kill_percentage=50.0, mutate=True):
+        """
+        Proceeds to the next generation of genomes by doing the following:
+
+        - Adjusts the fitness of the population
+        - Kills the given percentage of the population
+        - Crosses the fittest genomes for each species together to create new genomes (equal to the amount that were killed
+        - Mutates the population (if told to)
+        - Increments the generation number
+
+        Parameters:
+        kill_percentage (float): The percentage of genomes to remove from the gene pool
+        mutate (bool):           Determines if the population should be mutated or not
+        """
+        # Adjust the population's fitness
+        self.adjust_population_fitness()
+
+        # Kill a percentage of the population and get the amount to replace
+        amt_to_replace = self.kill_percentage(kill_percentage)
+
+        # Create children from the fittest genomes to replace the genomes that were killed
+        pop_by_fitness = sorted(self.get_population(), key=lambda g: g.get_fitness(), reverse=True)
+        genome_index = 1
+        while amt_to_replace > 0:
+            child = self.cross(pop_by_fitness[genome_index], pop_by_fitness[genome_index + 1])
+            self.add_genome(child)
+            if genome_index >= len(pop_by_fitness) - 2:
+                genome_index = 0
+            else:
+                genome_index += 1
+            amt_to_replace -= 1
+
+        # TODO: Find out why mutate_random() creates an infinite loop sometimes
+
+        # Mutate the population
+        if mutate:
+            for genome in self.get_population():
+                genome.mutate_random()
+
+        # Increment the generation number
+        self.__generation += 1
+
+    def set_generation(self, generation): self.__generation = generation
 
 
 class Species:
@@ -358,6 +412,8 @@ class Species:
     def __len__(self): return len(self.__genomes)
 
     def __setitem__(self, key, value): self.__genomes[key] = value
+
+    def __str__(self): return 'Species: {0}, Genomes: {1}'.format(self.__id_num, len(self.__genomes))
 
     def add(self, genome): self.__genomes.append(genome)
 
