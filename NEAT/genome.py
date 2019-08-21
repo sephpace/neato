@@ -1,6 +1,7 @@
 
 import math
 import random
+import pickle
 
 import activations
 
@@ -19,25 +20,25 @@ class Genome:
     toggle connection expression.
 
     Attributes:
-    __input_length (int):            The amount of input nodes
-    __output_length (int):           The amount of output nodes
-    __inn_num_gen (generator):       The innovation number generator used to assign innovation numbers to connections
-    __nodes (list):                  The list of nodes in the genome
-    __connections (list):            The list of connections in the genome
+    __input_length (int):    The amount of input nodes
+    __output_length (int):   The amount of output nodes
+    __ecosystem (Ecosystem): The ecosystem that this genome is a part of
+    __nodes (list):          The list of nodes in the genome
+    __connections (list):    The list of connections in the genome
     """
 
-    def __init__(self, input_length, output_length, inn_num_gen):
+    def __init__(self, input_length, output_length, ecosystem=None):
         """
         Constructor.
 
         Parameters:
-        input_length (int):            The amount of input nodes
-        output_length (int):           The amount of output nodes
-        inn_num_gen (generator):       The innovation number generator used to assign innovation numbers to connections
+        input_length (int):    The amount of input nodes
+        output_length (int):   The amount of output nodes
+        ecosystem (Ecosystem): The ecosystem that this genome is a part of
         """
         self.__input_length = input_length
         self.__output_length = output_length
-        self.__inn_num_gen = inn_num_gen
+        self.__ecosystem = ecosystem
         self.__nodes = []
         self.__connections = []
         self.__fitness = 0
@@ -48,6 +49,8 @@ class Genome:
 
         for i in range(output_length):
             self.__nodes.append(Node(len(self.__nodes), 'output'))
+
+    def __call__(self, inputs): return self.evaluate(inputs)
 
     def __eq__(self, genome):
         return self.__nodes == genome.get_nodes() and self.__connections == genome.get_connections()
@@ -106,10 +109,10 @@ class Genome:
 
         # Create the connection and add it to the genome
         if reverse:
-            inn_num = self.__inn_num_gen.send((node2, node1))
+            inn_num = self.get_innovation_number(node2, node1)
             conn = Connection(inn_num, node2, node1, weight=weight)
         else:
-            inn_num = self.__inn_num_gen.send((node1, node2))
+            inn_num = self.get_innovation_number(node1, node2)
             conn = Connection(inn_num, node1, node2, weight=weight)
 
         # Add the connection to the genome
@@ -136,9 +139,9 @@ class Genome:
         self.__nodes.append(Node(node_id, 'hidden', activation=activation))
 
         # Create new connections to add in place of the disabled connection
-        conn_id_1 = self.__inn_num_gen.send((node_id, conn.get_out_node()))
-        conn_id_2 = self.__inn_num_gen.send((conn.get_in_node(), node_id))
+        conn_id_1 = self.get_innovation_number(node_id, conn.get_out_node())
         self.__connections.append(Connection(conn_id_1, node_id, conn.get_out_node(), weight=conn.get_weight()))
+        conn_id_2 = self.get_innovation_number(conn.get_in_node(), node_id)
         self.__connections.append(Connection(conn_id_2, conn.get_in_node(), node_id, weight=1.0))
 
     def connections_at_max(self):
@@ -165,7 +168,7 @@ class Genome:
         Returns:
         (Genome): A copy of the genome
         """
-        genome_copy = Genome(self.__input_length, self.__output_length, self.__inn_num_gen)
+        genome_copy = Genome(self.__input_length, self.__output_length, self.__ecosystem)
         node_copies = []
         conn_copies = []
         for node in self.__nodes:
@@ -212,23 +215,45 @@ class Genome:
         # Return the outputs
         return [node.get_value() for node in self.__nodes if node.get_type() == 'output']
 
-    def get_connection(self, innovation_number):
+    def get_connection(self, conn):
         """
         Returns the connection with the given innovation number.
 
         Parameters:
-        innovation_number (int): The innovation number of the connection
+        conn (int) or (tuple): The innovation number of the connection or the input and output nodes of the connection
 
         Returns:
-        (Connection): The connection in the genome with the given innovation number or None if it doesn't exist
+        (Connection): The connection in the genome with the given innovation number/input-output nodes or None if it doesn't exist
         """
         for connection in self.__connections:
-            if connection.get_innovation_number() == innovation_number:
+            if connection == conn:
                 return connection
 
     def get_connections(self): return self.__connections
 
+    def get_ecosystem(self): return self.__ecosystem
+
     def get_fitness(self): return self.__fitness
+
+    def get_innovation_number(self, in_node, out_node):
+        """
+        Returns the innovation number for a connection with the given input and output.
+
+        Parameters:
+        in_node (int):  The id of the input node for the connection
+        out_node (int): The id of the output node for the connection
+
+        Returns:
+        (int): The innovation number of an existing, matching connection or a new one if no matching connection exists
+        """
+        if self.__ecosystem is not None:
+            return self.__ecosystem.get_innovation_number(in_node, out_node)
+        else:
+            conn = (in_node, out_node)
+            if conn in self.__connections:
+                return self.get_connection(conn).get_innovation_number()
+            else:
+                return len(self.__connections)
 
     def get_node(self, node_id):
         """
@@ -398,7 +423,20 @@ class Genome:
             rand_conn = random.choice(self.__connections)
             rand_conn.toggle()
 
+    def save(self, path):
+        """
+        Pickles the genome and saves it to the given path.
+
+        If only the name is given, the genome will be saved to the directory of the file that created the genome.
+
+        Parameters:
+        path (str): The path for the new file (including the name of the file)
+        """
+        pickle.dump(self, open(path, 'wb'))
+
     def set_connections(self, connections): self.__connections = connections
+
+    def set_ecosystem(self, ecosystem): self.__ecosystem = ecosystem
 
     def set_fitness(self, fitness): self.__fitness = fitness
 
@@ -536,6 +574,9 @@ class Connection:
             return conn.get_innovation_number() == self.__innovation_number
         elif isinstance(conn, int):
             return conn == self.__innovation_number
+        elif isinstance(conn, tuple):
+            in_node, out_node = conn
+            return in_node == self.__in_node and out_node == self.__out_node
         else:
             return False
 
@@ -579,3 +620,13 @@ class Connection:
 class GenomeError(Exception):
     def __init__(self, message):
         self.message = message
+
+
+def load(path):
+    """
+    Load a genome from the file at the given path.
+
+    Parameters:
+    The path to the file containing a pickled genome
+    """
+    pickle.load(open(path, 'rb'))

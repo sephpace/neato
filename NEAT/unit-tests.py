@@ -4,7 +4,7 @@ import random
 from copy import copy
 
 from genome import Genome, Node, Connection, GenomeError
-from ecosystem import Ecosystem, Species, innovation_number_generator, EcosystemError
+from ecosystem import Ecosystem, Species, EcosystemError
 import activations
 
 
@@ -12,12 +12,10 @@ class TestEcosystem(unittest.TestCase):
 
     def test_add_genome(self):
         e = Ecosystem()
-        i = innovation_number_generator()
-        i.send(None)
 
         # Test to make sure it creates a new species if there aren't any
         msg = 'Failed to create new species with genome!'
-        g = Genome(2, 2, i)
+        g = Genome(2, 2)
         g.add_connection(0, 2, weight=0.4)
         g.add_connection(0, 3, weight=0.4)
         g.add_connection(1, 2, weight=0.4)
@@ -31,7 +29,7 @@ class TestEcosystem(unittest.TestCase):
 
         # Test to make sure it adds the genome to the same species if they are close
         msg = 'Failed to add genome to species correctly!'
-        g2 = Genome(2, 2, i)
+        g2 = Genome(2, 2)
         g2.add_connection(0, 2, weight=0.3)
         g2.add_connection(0, 3, weight=0.4)
         g2.add_connection(1, 2, weight=0.4)
@@ -44,7 +42,7 @@ class TestEcosystem(unittest.TestCase):
 
         # Test to make sure a new species is created if the genome is distant from the current species
         msg = 'Failed to create new species with genome!'
-        g3 = Genome(2, 2, i)
+        g3 = Genome(2, 2)
         g3.add_connection(0, 2, weight=0.3)
         g3.add_connection(0, 3, weight=0.4)
         g3.add_connection(1, 2, weight=0.4)
@@ -63,13 +61,11 @@ class TestEcosystem(unittest.TestCase):
         msg = 'Adjusted fitness incorrectly!'
 
         e = Ecosystem(threshold=0.5, disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
-        i = innovation_number_generator()
-        i.send(None)
 
         # Create genomes
-        g = Genome(2, 2, i)
-        g2 = Genome(2, 2, i)
-        g3 = Genome(2, 2, i)
+        g = Genome(2, 2)
+        g2 = Genome(2, 2)
+        g3 = Genome(2, 2)
 
         # Add connections and/or nodes
         g.add_connection(0, 2, weight=1.0)
@@ -127,13 +123,11 @@ class TestEcosystem(unittest.TestCase):
         msg = 'Adjusted fitness incorrectly!'
 
         e = Ecosystem(threshold=0.5, disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
-        i = innovation_number_generator()
-        i.send(None)
 
         # Create genomes
-        g = Genome(2, 2, i)
-        g2 = Genome(2, 2, i)
-        g3 = Genome(2, 2, i)
+        g = Genome(2, 2)
+        g2 = Genome(2, 2)
+        g3 = Genome(2, 2)
 
         # Add connections and/or nodes
         g.add_connection(0, 2, weight=1.0)
@@ -232,9 +226,7 @@ class TestEcosystem(unittest.TestCase):
             self.assertEqual(output_count, 3, msg)
 
         # Test to make sure an initial population is created with a parent genome
-        inn = innovation_number_generator()
-        inn.send(None)
-        parent = Genome(2, 3, inn)
+        parent = Genome(2, 3)
         e.create_initial_population(15, parent_genome=parent, mutate=False)
         self.assertEqual(len(e.get_population()), 15, msg)
         for g in e.get_population():
@@ -267,11 +259,9 @@ class TestEcosystem(unittest.TestCase):
 
     def test_cross(self):
         e = Ecosystem()
-        i = innovation_number_generator()
-        i.send(None)
 
         # Create genomes
-        g = Genome(2, 2, i)
+        g = Genome(2, 2, ecosystem=e)
         g.add_connection(0, 2)
         g.add_connection(0, 3)
         g.add_connection(1, 2)
@@ -279,7 +269,7 @@ class TestEcosystem(unittest.TestCase):
         g.add_node(0)
         g.get_connections()[5].set_weight(0.4)
 
-        g2 = Genome(2, 2, i)
+        g2 = Genome(2, 2, ecosystem=e)
         g2.add_connection(0, 2)
         g2.add_connection(0, 3)
         g2.add_connection(1, 2)
@@ -356,13 +346,11 @@ class TestEcosystem(unittest.TestCase):
         error_margin = 0.000000000001
 
         e = Ecosystem(disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
-        i = innovation_number_generator()
-        i.send(None)
 
         # Create genomes
-        g = Genome(2, 2, i)
-        g2 = Genome(2, 2, i)
-        g3 = Genome(2, 2, i)
+        g = Genome(2, 2, ecosystem=e)
+        g2 = Genome(2, 2, ecosystem=e)
+        g3 = Genome(2, 2, ecosystem=e)
 
         # Add connections and/or nodes
         g.add_connection(0, 2, weight=1.0)
@@ -401,6 +389,25 @@ class TestEcosystem(unittest.TestCase):
         self.assertEqual(e.get_distance(g2, g2), 0.0, msg)
         self.assertEqual(e.get_distance(g3, g3), 0.0, msg)
 
+    def test_get_innovation_number(self):
+        e = Ecosystem()
+
+        msg = 'Innovation number not unique!'
+
+        # Make sure innovation numbers are unique
+        inn_num = 0
+        for i in range(10):
+            for j in range(10, 20):
+                self.assertEqual(e.get_innovation_number(i, j), inn_num, msg)
+                inn_num += 1
+
+        # Make sure it's the same twice
+        inn_num = 0
+        for i in range(10):
+            for j in range(10, 20):
+                self.assertEqual(e.get_innovation_number(i, j), inn_num, msg)
+                inn_num += 1
+
     def test_kill(self):
         e = Ecosystem()
 
@@ -420,13 +427,11 @@ class TestEcosystem(unittest.TestCase):
 
     def test_kill_percentage(self):
         e = Ecosystem(disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
-        i = innovation_number_generator()
-        i.send(None)
 
         # Create genomes
-        g = Genome(2, 2, i)
-        g2 = Genome(2, 2, i)
-        g3 = Genome(2, 2, i)
+        g = Genome(2, 2, ecosystem=e)
+        g2 = Genome(2, 2, ecosystem=e)
+        g3 = Genome(2, 2, ecosystem=e)
 
         # Add connections and/or nodes
         g.add_connection(0, 2, weight=1.0)
@@ -522,9 +527,7 @@ class TestEcosystem(unittest.TestCase):
 
 class TestSpecies(unittest.TestCase):
     def test_constructor(self):
-        inn = innovation_number_generator()
-        inn.send(None)
-        g = Genome(1, 1, inn)
+        g = Genome(1, 1)
         s = Species(0, g)
 
         # Test to make sure attributes are set correctly.
@@ -535,74 +538,13 @@ class TestSpecies(unittest.TestCase):
         self.assertEqual(len(s.get_genomes()), 1, msg)
 
 
-class TestInnovationNumberGenerator(unittest.TestCase):
-    def test_standalone(self):
-        msg = 'Innovation number incorrectly generated!'
-
-        # Test to make sure innovation numbers are always unique
-        inn = innovation_number_generator()
-        inn.send(None)
-        count = 0
-        for i in range(33):
-            for j in range(33):
-                self.assertEqual(inn.send((i, j)), count, msg)
-                count += 1
-
-        self.assertEqual(inn.send((32, 33)), 1089, msg)
-
-        # It should get the same results twice
-        count = 0
-        for i in range(33):
-            for j in range(33):
-                self.assertEqual(inn.send((i, j)), count, msg)
-                count += 1
-
-        self.assertEqual(inn.send((32, 33)), 1089, msg)
-
-    def test_one_genome(self):
-        msg = 'Innovation number incorrectly generated!'
-
-        # Test to make sure innovation numbers are always unique
-        inn = innovation_number_generator()
-        inn.send(None)
-        g = Genome(5, 5, inn)
-
-        for i in range(25):
-            g.mutate_add_connection()
-
-        for i in range(25):
-            self.assertTrue(i in [c.get_innovation_number() for c in g.get_connections()], msg)
-
-    def test_two_genomes(self):
-        msg = 'Innovation number incorrectly generated!'
-
-        # Test to make sure innovation numbers are always unique
-        inn = innovation_number_generator()
-        inn.send(None)
-
-        g = Genome(5, 5, inn)
-        g2 = Genome(5, 5, inn)
-
-        for i in range(50):
-            if i % 2 == 0:  # Even numbers
-                g.mutate_add_connection()
-            else:           # Odd numbers
-                g2.mutate_add_connection()
-
-        for i in range(25):
-            self.assertTrue(i in [c.get_innovation_number() for c in g.get_connections()], msg)
-            self.assertTrue(i in [c.get_innovation_number() for c in g2.get_connections()], msg)
-
-
 class TestGenome(unittest.TestCase):
 
     def test_constructor(self):
         input_length = 2
         output_length = 2
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
 
-        g = Genome(input_length, output_length, inn_num_gen)
+        g = Genome(input_length, output_length)
 
         # Test if attributes are correct
         msg = 'Failed to assign genome attributes correctly!'
@@ -611,9 +553,7 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(g.get_fitness(), 0)
 
     def test__add_connection(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(2, 2, inn_num_gen)
+        g = Genome(2, 2)
 
         # Test connecting input and output nodes
         msg = 'Failed connection to output node!'
@@ -697,9 +637,7 @@ class TestGenome(unittest.TestCase):
         self.assertTrue(node_to_itself, msg)
 
     def test_add_node(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(1, 1, inn_num_gen)
+        g = Genome(1, 1)
 
         # Test adding nodes
         msg = 'Node added incorrectly!'
@@ -726,9 +664,7 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(g.get_nodes()[3].get_activation(), activations.absolute, msg)
 
     def test_connections_at_max(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(2, 2, inn_num_gen)
+        g = Genome(2, 2)
 
         msg = 'Connections not at max and should be!'
         msg2 = 'Connections at max and shouldn\'t be!'
@@ -756,9 +692,7 @@ class TestGenome(unittest.TestCase):
         self.assertTrue(g.connections_at_max(), msg2)
 
     def test_copy(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(2, 2, inn_num_gen)
+        g = Genome(2, 2)
 
         # Test to make sure the copy is the same as the original
         msg = 'Copy is different from the original!'
@@ -782,9 +716,7 @@ class TestGenome(unittest.TestCase):
     def test_evaluate(self):
         error_margin = 0.000000000001
 
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(2, 2, inn_num_gen)
+        g = Genome(2, 2)
 
         msg = 'Invalid evaluation result!'
 
@@ -813,9 +745,7 @@ class TestGenome(unittest.TestCase):
         self.assertAlmostEqual(results[1], 0.4, msg=msg, delta=error_margin)
 
     def test_get_node_inputs(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(2, 2, inn_num_gen)
+        g = Genome(2, 2)
 
         g.add_connection(0, 2)
         g.add_connection(0, 3)
@@ -827,9 +757,7 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(g.get_node_inputs(3), [0], msg)
 
     def test_get_node_outputs(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(2, 2, inn_num_gen)
+        g = Genome(2, 2)
 
         g.add_connection(0, 2)
         g.add_connection(0, 3)
@@ -841,9 +769,7 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(g.get_node_outputs(1), [2], msg)
 
     def test_get_node_max_distance(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(2, 2, inn_num_gen)
+        g = Genome(2, 2)
 
         # Test to make sure empty genomes return the correct values for output nodes
         msg = 'Disconnected output node returned invalid value!'
@@ -879,9 +805,7 @@ class TestGenome(unittest.TestCase):
             self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].get_id()), correct_distances[i], msg)
 
     def test_mutate_add_connection(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(2, 2, inn_num_gen)
+        g = Genome(2, 2)
 
         # Test adding a connection
         msg = 'Connection added incorrectly!'
@@ -909,9 +833,7 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(len(g.get_connections()), 4, msg)  # Shouldn't go passed 4
 
     def test_mutate_add_node(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(1, 1, inn_num_gen)
+        g = Genome(1, 1)
 
         # Test to make sure you can't add a node without an existing connection
         msg = 'Node added without existing connection!'
@@ -938,9 +860,7 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(len(g.get_nodes()), 3, msg)
 
     def test_mutate_random_weight(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(1, 1, inn_num_gen)
+        g = Genome(1, 1)
 
         msg = 'Failed to set random connection weight!'
 
@@ -958,9 +878,7 @@ class TestGenome(unittest.TestCase):
         self.assertNotEqual(before, after, msg)
 
     def test_mutate_shift_weight(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(1, 1, inn_num_gen)
+        g = Genome(1, 1)
 
         msg = 'Failed to shift weight correctly!'
 
@@ -978,9 +896,7 @@ class TestGenome(unittest.TestCase):
         self.assertNotEqual(before, after, msg)
 
     def test_mutate_toggle_connection(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(1, 1, inn_num_gen)
+        g = Genome(1, 1)
 
         msg = 'Failed to toggle connection!'
 
@@ -999,9 +915,7 @@ class TestGenome(unittest.TestCase):
         self.assertNotEqual(before, after, msg)
 
     def test_set_connections(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(2, 2, inn_num_gen)
+        g = Genome(2, 2)
 
         # Test to make sure connections are set correctly
         msg = 'Connections set incorrectly!'
@@ -1010,9 +924,7 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(g.get_connections(), connections, msg)
 
     def test_set_fitness(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(0, 0, inn_num_gen)
+        g = Genome(0, 0)
 
         # Test to make sure fitness is set correctly
         msg = 'Fitness set incorrectly!'
@@ -1021,9 +933,7 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(g.get_fitness(), fitness, msg)
 
     def test_set_nodes(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(1, 1, inn_num_gen)
+        g = Genome(1, 1)
 
         # Test to make sure nodes are set correctly
         msg = 'Nodes set incorrectly!'
@@ -1032,9 +942,7 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(g.get_nodes(), nodes, msg)
 
     def test_sort_connections(self):
-        inn_num_gen = innovation_number_generator()
-        inn_num_gen.send(None)
-        g = Genome(2, 2, inn_num_gen)
+        g = Genome(2, 2)
 
         # Create a fairly complex structure
         g.add_connection(0, 2)
@@ -1112,6 +1020,26 @@ class TestNode(unittest.TestCase):
         n.set_value(50)
         self.assertNotEqual(n.get_activation(), nc.get_activation(), msg)
         self.assertNotEqual(n.get_value(), nc.get_value(), msg)
+
+    def test_get_innovation_number(self):
+        g = Genome(10, 10)
+
+        msg = 'Innovation number not unique!'
+
+        # Make sure innovation numbers are unique
+        inn_num = 0
+        for i in range(10):
+            for j in range(10, 20):
+                g.add_connection(i, j)
+                self.assertEqual(g.get_innovation_number(i, j), inn_num, msg)
+                inn_num += 1
+
+        # Make sure it's the same twice
+        inn_num = 0
+        for i in range(10):
+            for j in range(10, 20):
+                self.assertEqual(g.get_innovation_number(i, j), inn_num, msg)
+                inn_num += 1
 
     def test_set_activation(self):
         # Test to make sure it returns the correct value

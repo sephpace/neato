@@ -20,8 +20,8 @@ class Ecosystem:
                                     genome distance
     __weight_coefficient (float):   A coefficient that adjusts the importance of the average weight for connections when
                                     determining genome distance
-    __inn_num_gen (generator):      A generator that assigns innovation numbers to genomes
     __species (list):               A list of species present in the ecosystem
+    __connection_log (dict):         A set of existing connections within the ecosystem used to assign unique innovation numbers
     """
 
     def __init__(self, threshold=0.5, disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4):
@@ -41,9 +41,8 @@ class Ecosystem:
         self.__disjoint_coefficient = disjoint_coefficient
         self.__excess_coefficient = excess_coefficient
         self.__weight_coefficient = weight_coefficient
-        self.__inn_num_gen = innovation_number_generator()
-        self.__inn_num_gen.send(None)
         self.__species = []
+        self.__connection_log = {}
 
     def add_genome(self, genome):
         """
@@ -53,6 +52,7 @@ class Ecosystem:
         Parameters:
         genome (Genome): The genome to add to a species in the ecosystem
         """
+        genome.set_ecosystem(self)
         # Look for a species that the genome fits into and add it if found
         for species in self.__species:
             if self.get_distance(genome, species.get_representative()) < self.__threshold:
@@ -92,7 +92,7 @@ class Ecosystem:
         input_amt (int):  The amount of input nodes for the genome
         output_amt (int): The amount of output nodes for the genome
         """
-        genome = Genome(input_amt, output_amt, self.__inn_num_gen)
+        genome = Genome(input_amt, output_amt, ecosystem=self)
         self.add_genome(genome)
 
     def create_initial_population(self, population_size, parent_genome=None, input_length=None, output_length=None, mutate=True):
@@ -131,8 +131,9 @@ class Ecosystem:
         for i in range(population_size):
             if from_parent:
                 g = parent_genome.copy()
+                g.set_ecosystem(self)
             else:
-                g = Genome(input_length, output_length, self.__inn_num_gen)
+                g = Genome(input_length, output_length, ecosystem=self)
             if mutate:
                 g.mutate_random()
             self.add_genome(g)
@@ -208,7 +209,7 @@ class Ecosystem:
         child_connections.sort(key=lambda c: c.get_innovation_number())
 
         # Create the child
-        child = Genome(0, 0, self.__inn_num_gen)
+        child = Genome(0, 0, ecosystem=self)
         child.set_nodes(child_nodes)
         child.set_connections(child_connections)
 
@@ -253,6 +254,25 @@ class Ecosystem:
         distance += (excess_count * self.__excess_coefficient / max_connections) if max_connections > 0 else 0.0
         distance += (average_weight * self.__weight_coefficient)
         return distance
+
+    def get_innovation_number(self, in_node, out_node):
+        """
+        Returns the innovation number for a connection with the given input and output.
+
+        Parameters:
+        in_node (int):  The id of the input node for the connection
+        out_node (int): The id of the output node for the connection
+
+        Returns:
+        (int): The innovation number of an existing, matching connection or a new one if no matching connection exists
+        """
+        conn = (in_node, out_node)
+        if conn in self.__connection_log:
+            return self.__connection_log[conn]
+        else:
+            inn_num = len(self.__connection_log)
+            self.__connection_log[conn] = inn_num
+            return inn_num
 
     def get_population(self):
         """
@@ -305,7 +325,6 @@ class Ecosystem:
                 amt_killed += 1
 
 
-
 class Species:
     """
     A list of genomes that have close enough topologies to be considered part of the same species.
@@ -353,25 +372,6 @@ class Species:
     def remove(self, genome): self.__genomes.remove(genome)
 
     def sort(self, key, reverse=False): self.__genomes.sort(key=key, reverse=reverse)
-
-
-def innovation_number_generator():
-    """
-    A generator that given the in node and out node of a connection as a tuple through the send function,
-    yields a unique innovation number for that connection.  If the connection already exists within the
-    ecosystem, the existing innovation number is yielded.
-
-    The generator function send(None) must be called after declaration.
-    """
-    inn_log = []
-    inn_num = 0
-    while True:
-        conn = yield inn_num
-        if conn in inn_log:
-            inn_num = inn_log.index(conn)
-        else:
-            inn_log.append(conn)
-            inn_num = len(inn_log) - 1
 
 
 class EcosystemError(Exception):
