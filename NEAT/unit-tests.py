@@ -524,6 +524,44 @@ class TestEcosystem(unittest.TestCase):
         e.kill_percentage(90)
         self.assertAlmostEqual(len(e.get_population()), 12, msg=msg, delta=3)
 
+    def test_next_generation(self):
+        e = Ecosystem()
+
+        e.create_initial_population(100, input_length=2, output_length=2)
+
+        for g in e.get_population():
+            g.set_fitness(random.randrange(0, 200))
+
+        e.next_generation()
+
+        # Test to make sure the population size is the same from generation to generation
+        msg = 'Population size different for next generation!'
+        self.assertEqual(len(e.get_population()), 100, msg)
+
+        # Test to make sure the generation number is incremented
+        msg = 'Generation number not incremented!'
+        self.assertEqual(e.get_generation(), 1, msg)
+
+        e.next_generation()
+
+        # Test to make sure the population size is the same from generation to generation
+        msg = 'Population size different for next generation!'
+        self.assertEqual(len(e.get_population()), 100, msg)
+
+        # Test to make sure the generation number is incremented
+        msg = 'Generation number not incremented!'
+        self.assertEqual(e.get_generation(), 2, msg)
+
+        e.next_generation()
+
+        # Test to make sure the population size is the same from generation to generation
+        msg = 'Population size different for next generation!'
+        self.assertEqual(len(e.get_population()), 100, msg)
+
+        # Test to make sure the generation number is incremented
+        msg = 'Generation number not incremented!'
+        self.assertEqual(e.get_generation(), 3, msg)
+
 
 class TestSpecies(unittest.TestCase):
     def test_constructor(self):
