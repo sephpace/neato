@@ -366,8 +366,6 @@ class Ecosystem:
                 genome_index += 1
             amt_to_replace -= 1
 
-        # TODO: Find out why mutate_random() creates an infinite loop sometimes
-
         # Mutate the population
         if mutate:
             for genome in self.get_population():

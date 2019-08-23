@@ -233,6 +233,42 @@ class Genome:
 
     def get_ecosystem(self): return self.__ecosystem
 
+    def get_first_available_connection(self):
+        """
+        Returns the first potential connection that does not already exist within the genome.
+
+        Returns:
+        (tuple): The input and output node id's for an available connection, contained in a tuple
+        (None):  None if no input is available
+        """
+        if not self.connections_at_max():
+            input_nodes = [n.get_id() for n in self.__nodes if n.get_type() == 'input']
+            output_nodes = [n.get_id() for n in self.__nodes if n.get_type() == 'output']
+            hidden_nodes = [n.get_id() for n in self.__nodes if n.get_type() == 'hidden']
+
+            for i in input_nodes:
+                for o in output_nodes:
+                    if (i, o) not in self.__connections:
+                        return i, o
+
+            for h in hidden_nodes:
+                for o in output_nodes:
+                    if (h, o) not in self.__connections:
+                        return h, o
+
+            for i in input_nodes:
+                for h in hidden_nodes:
+                    if (i, h) not in self.__connections:
+                        return i, h
+
+            for h1 in hidden_nodes:
+                for h2 in hidden_nodes:
+                    if h1 == h2:
+                        continue
+                    elif (h1, h2) not in self.__connections:
+                        return h1, h2
+        return None, None
+
     def get_fitness(self): return self.__fitness
 
     def get_innovation_number(self, in_node, out_node):
@@ -335,18 +371,30 @@ class Genome:
         """
         Randomly adds a connection between two existing nodes.
         """
+        tries = 0
         if self.connections_at_max() is False:
             while True:
-                # Select two random, unequal nodes to connect
-                node_ids = [node.get_id() for node in self.__nodes]
-                node1 = random.choice(node_ids)
-                node2 = random.choice(node_ids)
+                if tries < 20:
+                    # Select two random, unequal nodes to connect
+                    node_ids = [node.get_id() for node in self.__nodes]
+                    node1 = random.choice(node_ids)
+                    node2 = random.choice(node_ids)
 
-                try:
-                    self.add_connection(node1, node2)
+                    try:
+                        self.add_connection(node1, node2)
+                        break
+                    except GenomeError:
+                        tries += 1
+                else:
+                    # Select the first available connection
+                    node1, node2 = self.get_first_available_connection()
+
+                    if node1 is not None and node2 is not None:
+                        try:
+                            self.add_connection(node1, node2)
+                        except GenomeError:
+                            pass
                     break
-                except GenomeError:
-                    continue
 
     def mutate_add_node(self):
         """

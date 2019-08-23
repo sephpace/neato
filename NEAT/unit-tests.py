@@ -868,7 +868,7 @@ class TestGenome(unittest.TestCase):
         # Test to make sure it doesn't go above the maximum connections
         msg = 'Connections exceeded maximum amount!'
         g.mutate_add_connection()
-        self.assertEqual(len(g.get_connections()), 4, msg)  # Shouldn't go passed 4
+        self.assertEqual(len(g.get_connections()), 4, msg)  # Shouldn't go past 4
 
     def test_mutate_add_node(self):
         g = Genome(1, 1)
