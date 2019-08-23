@@ -46,6 +46,9 @@ class Ecosystem:
         self.__generation = 0
         self.__connection_log = {}
 
+    def __str__(self):
+        return 'Generation: {0}  Population: {1}  Species: {2}  Max Fitness: {3}'.format(self.__generation, len(self.get_population()), len(self.__species), max([g.get_fitness() for g in self.get_population()]))
+
     def add_genome(self, genome):
         """
         Adds the given genome to a species in the ecosystem.  If no species exist or the new genome isn't close
