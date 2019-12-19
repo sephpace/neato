@@ -262,6 +262,37 @@ class TestEcosystem(unittest.TestCase):
 
         # Create genomes
         g = Genome(2, 2, ecosystem=e)
+        g2 = Genome(2, 2, ecosystem=e)
+
+        # Cross the genomes
+        child = e.cross(g, g2)
+
+        # Test child connections
+        msg = 'Child connection doesn\'t exist within either parent!'
+        for c in child.get_connections():
+            self.assertTrue(g.get_connection(c.get_innovation_number()) is not None or g2.get_connection(c.get_innovation_number()) is not None, msg)
+
+        # Test to make sure the child has the same amount of connections as the fitter parent
+        msg = 'Child missing fitter parent connection(s)!'
+        self.assertEqual(len(child.get_connections()), len(g.get_connections()), msg)
+
+        # Test child nodes
+        msg = 'Child node doesn\'t exist within either parent!'
+        for n in child.get_nodes():
+            self.assertTrue(g.get_node(n.get_id()) is not None or g2.get_node(n.get_id()) is not None, msg)
+
+        # Test to make sure the child has the same amount of nodes as the fitter parent
+        msg = 'Child is missing fitter parent node(s)!'
+        self.assertEqual(len(child.get_nodes()), len(g.get_nodes()), msg)
+
+        # Test preference for fit parents
+        msg = 'Child connection preferred less fit parent!'
+        for c in child.get_connections():
+            in_both = g.get_connection(c.get_innovation_number()) is not None and g2.get_connection(c.get_innovation_number()) is not None
+            in_fit_parent = g.get_connection(c.get_innovation_number()) is not None and g2.get_connection(c.get_innovation_number()) is None
+            self.assertTrue(in_both or in_fit_parent, msg)
+
+        # Add connections and nodes
         g.add_connection(0, 2)
         g.add_connection(0, 3)
         g.add_connection(1, 2)
@@ -269,7 +300,6 @@ class TestEcosystem(unittest.TestCase):
         g.add_node(0)
         g.get_connections()[5].set_weight(0.4)
 
-        g2 = Genome(2, 2, ecosystem=e)
         g2.add_connection(0, 2)
         g2.add_connection(0, 3)
         g2.add_connection(1, 2)
