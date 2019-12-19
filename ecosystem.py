@@ -163,20 +163,47 @@ class Ecosystem:
             less_fit_parent = genome1
 
         # Combine the genomes
-        child_nodes = []
-        child_connections = []
+        if len(more_fit_parent.get_connections()) == 0:
+            input_length, output_length = more_fit_parent.shape
+            child = Genome(input_length, output_length, ecosystem=self)
+            return child
+        else:
+            child_nodes = []
+            child_connections = []
 
-        g1_inn_nums = [c.get_innovation_number() for c in genome1.get_connections()]
-        g2_inn_nums = [c.get_innovation_number() for c in genome2.get_connections()]
-        all_inn_nums = set(g1_inn_nums + g2_inn_nums)
+            g1_inn_nums = [c.get_innovation_number() for c in genome1.get_connections()]
+            g2_inn_nums = [c.get_innovation_number() for c in genome2.get_connections()]
+            all_inn_nums = set(g1_inn_nums + g2_inn_nums)
 
-        for inn_num in all_inn_nums:
-            # --- Matching gene for both parents ---
-            if inn_num in more_fit_parent.get_connections() and inn_num in less_fit_parent.get_connections():
-                rand_choice = random.randint(0, 1)
+            for inn_num in all_inn_nums:
+                # --- Matching gene for both parents ---
+                if inn_num in more_fit_parent.get_connections() and inn_num in less_fit_parent.get_connections():
+                    rand_choice = random.randint(0, 1)
 
-                # More fit parent
-                if rand_choice == 0:
+                    # More fit parent
+                    if rand_choice == 0:
+                        conn = more_fit_parent.get_connection(inn_num)
+
+                        if conn.get_in_node() not in [n.get_id() for n in child_nodes]:
+                            child_nodes.append(more_fit_parent.get_node(conn.get_in_node()))
+
+                        if conn.get_out_node() not in [n.get_id() for n in child_nodes]:
+                            child_nodes.append(more_fit_parent.get_node(conn.get_out_node()))
+
+                    # Less fit parent
+                    else:
+                        conn = less_fit_parent.get_connection(inn_num)
+
+                        if conn.get_in_node() not in [n.get_id() for n in child_nodes]:
+                            child_nodes.append(less_fit_parent.get_node(conn.get_in_node()))
+
+                        if conn.get_out_node() not in [n.get_id() for n in child_nodes]:
+                            child_nodes.append(less_fit_parent.get_node(conn.get_out_node()))
+
+                    child_connections.append(conn)
+
+                # --- Disjoint or excess gene for fit parent ---
+                elif inn_num in more_fit_parent.get_connections() and inn_num not in less_fit_parent.get_connections():
                     conn = more_fit_parent.get_connection(inn_num)
 
                     if conn.get_in_node() not in [n.get_id() for n in child_nodes]:
@@ -185,40 +212,18 @@ class Ecosystem:
                     if conn.get_out_node() not in [n.get_id() for n in child_nodes]:
                         child_nodes.append(more_fit_parent.get_node(conn.get_out_node()))
 
-                # Less fit parent
-                else:
-                    conn = less_fit_parent.get_connection(inn_num)
+                    child_connections.append(conn)
 
-                    if conn.get_in_node() not in [n.get_id() for n in child_nodes]:
-                        child_nodes.append(less_fit_parent.get_node(conn.get_in_node()))
+            # Sort the nodes and connections
+            child_nodes.sort(key=lambda node: node.get_id())
+            child_connections.sort(key=lambda c: c.get_innovation_number())
 
-                    if conn.get_out_node() not in [n.get_id() for n in child_nodes]:
-                        child_nodes.append(less_fit_parent.get_node(conn.get_out_node()))
+            # Create the child
+            child = Genome(0, 0, ecosystem=self)
+            child.set_nodes(child_nodes)
+            child.set_connections(child_connections)
 
-                child_connections.append(conn)
-
-            # --- Disjoint or excess gene for fit parent ---
-            elif inn_num in more_fit_parent.get_connections() and inn_num not in less_fit_parent.get_connections():
-                conn = more_fit_parent.get_connection(inn_num)
-
-                if conn.get_in_node() not in [n.get_id() for n in child_nodes]:
-                    child_nodes.append(more_fit_parent.get_node(conn.get_in_node()))
-
-                if conn.get_out_node() not in [n.get_id() for n in child_nodes]:
-                    child_nodes.append(more_fit_parent.get_node(conn.get_out_node()))
-
-                child_connections.append(conn)
-
-        # Sort the nodes and connections
-        child_nodes.sort(key=lambda node: node.get_id())
-        child_connections.sort(key=lambda c: c.get_innovation_number())
-
-        # Create the child
-        child = Genome(0, 0, ecosystem=self)
-        child.set_nodes(child_nodes)
-        child.set_connections(child_connections)
-
-        return child
+            return child
 
     def get_distance(self, genome1, genome2):
         # Find the amount of disjoint and excess connections

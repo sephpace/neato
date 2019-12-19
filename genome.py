@@ -25,6 +25,7 @@ class Genome:
     __ecosystem (Ecosystem): The ecosystem that this genome is a part of
     __nodes (list):          The list of nodes in the genome
     __connections (list):    The list of connections in the genome
+    shape (tuple):           The amount of input and output nodes
     """
 
     def __init__(self, input_length, output_length, ecosystem=None):
@@ -42,6 +43,7 @@ class Genome:
         self.__nodes = []
         self.__connections = []
         self.__fitness = 0
+        self.shape = (input_length, output_length)
 
         # Add input and output nodes to their respective lists
         for i in range(input_length):
