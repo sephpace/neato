@@ -193,7 +193,27 @@ class Ecosystem:
 
         return child
 
+    def get_best_genome(self):
+        """
+        Returns the fittest genome of the current generation.
+
+        Returns:
+        (Genome): The fittest genome of the current generation
+        """
+        genomes_by_fitness = sorted(self.get_population(), key=lambda g: g.get_fitness(), reverse=True)
+        return genomes_by_fitness[0]
+
     def get_distance(self, genome1, genome2):
+        """
+        Returns the the distance between two genomes, meaning a score for how different they are from eachother.
+
+        Parameters:
+        genome1 (Genome): The first genome
+        genome2 (Genome): The second genome
+
+        Returns:
+        (float): The distance between the two genomes
+        """
         # Find the amount of disjoint and excess connections
         g1_inn_nums = [c.get_innovation_number() for c in genome1.get_connections()]
         g2_inn_nums = [c.get_innovation_number() for c in genome2.get_connections()]
