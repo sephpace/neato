@@ -496,6 +496,8 @@ class Genome:
 
     def set_nodes(self, nodes):
         self.__nodes = nodes
+        self.__input_length = 0
+        self.__output_length = 0
         for node in nodes:
             if node.get_type() == 'input':
                 self.__input_length += 1
