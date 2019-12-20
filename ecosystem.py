@@ -187,7 +187,6 @@ class Ecosystem:
         child_connections.sort(key=lambda c: c.get_innovation_number())
 
         # Create the child
-        input_length, output_length = more_fit_parent.shape
         child = Genome(0, 0, ecosystem=self)
         child.set_nodes(more_fit_parent.get_nodes())
         child.set_connections(child_connections)
