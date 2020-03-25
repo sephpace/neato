@@ -372,6 +372,21 @@ class TestEcosystem(unittest.TestCase):
             in_fit_parent = g.get_connection(c.get_innovation_number()) is None and g2.get_connection(c.get_innovation_number()) is not None
             self.assertTrue(in_both or in_fit_parent, msg)
 
+    def test_get_best_genome(self):
+        pop_size = 1000
+        max_fitness = 100
+
+        e = Ecosystem()
+        e.create_initial_population(pop_size, input_length=2, output_length=2)
+        pop = e.get_population()
+        fitnesses = []
+        for i in range(pop_size - 1):
+            fitnesses.append(random.randrange(0, max_fitness - 1))
+        fitnesses.insert(random.randint(0, pop_size - 1), max_fitness)
+        for i in range(pop_size):
+            pop[i].set_fitness(fitnesses[i])
+        self.assertEqual(e.get_best_genome().get_fitness(), max_fitness)
+
     def test_get_distance(self):
         error_margin = 0.000000000001
 

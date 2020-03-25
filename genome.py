@@ -138,7 +138,7 @@ class Genome:
 
         # Create the node
         node_id = len(self.__nodes)
-        self.__nodes.append(Node(node_id, 'hidden', activation=activation))
+        self.__nodes.append(Node(node_id, 'hidden', activation=activation,  value=0.0))
 
         # Create new connections to add in place of the disabled connection
         conn_id_1 = self.get_innovation_number(node_id, conn.get_out_node())
@@ -208,6 +208,10 @@ class Genome:
         for conn in self.__connections:
             if conn.is_expressed():
                 in_node, out_node = self.get_node(conn.get_in_node()), self.get_node(conn.get_out_node())
+                if in_node.get_value() is None:
+                    in_node.set_value(0.0)
+                if out_node.get_value() is None:
+                    out_node.set_value(0.0)
                 out_node.set_value(out_node.get_value() + in_node.get_value() * conn.get_weight())
 
                 # Call the activation function if the out node has finished being calculated
@@ -573,7 +577,7 @@ class Node:
         Returns:
         (Node): A copy of the node
         """
-        return Node(self.__id_num, self.__node_type, self.__activation, self.__value)
+        return Node(self.__id_num, self.__node_type, activation=self.__activation, value=self.__value)
 
     def get_activation(self): return self.__activation
 

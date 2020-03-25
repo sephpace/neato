@@ -47,7 +47,7 @@ class Ecosystem:
         self.__connection_log = {}
 
     def __str__(self):
-        return 'Generation: {0}  Population: {1}  Species: {2}  Max Fitness: {3}'.format(self.__generation, len(self.get_population()), len(self.__species), max([g.get_fitness() for g in self.get_population()]))
+        return 'Generation: {0}  Population: {1}  Species: {2}  Best Fitness: {3}'.format(self.__generation, len(self.get_population()), len(self.__species), self.get_best_genome().get_fitness())
 
     def add_genome(self, genome):
         """
@@ -193,7 +193,27 @@ class Ecosystem:
 
         return child
 
+    def get_best_genome(self):
+        """
+        Returns the fittest genome of the current generation.
+
+        Returns:
+        (Genome): The fittest genome of the current generation
+        """
+        genomes_by_fitness = sorted(self.get_population(), key=lambda g: g.get_fitness(), reverse=True)
+        return genomes_by_fitness[0]
+
     def get_distance(self, genome1, genome2):
+        """
+        Returns the the distance between two genomes, meaning a score for how different they are from eachother.
+
+        Parameters:
+        genome1 (Genome): The first genome
+        genome2 (Genome): The second genome
+
+        Returns:
+        (float): The distance between the two genomes
+        """
         # Find the amount of disjoint and excess connections
         g1_inn_nums = [c.get_innovation_number() for c in genome1.get_connections()]
         g2_inn_nums = [c.get_innovation_number() for c in genome2.get_connections()]
@@ -310,7 +330,7 @@ class Ecosystem:
                 total_killed += 1
         return total_killed
 
-    def next_generation(self, kill_percentage=50.0, mutate=True):
+    def next_generation(self, kill_percentage=50.0, mutate=True, parent_genome=None):
         """
         Proceeds to the next generation of genomes by doing the following:
 
@@ -323,24 +343,29 @@ class Ecosystem:
         Parameters:
         kill_percentage (float): The percentage of genomes to remove from the gene pool
         mutate (bool):           Determines if the population should be mutated or not
+        parent_genome (Genome):  The optional parent of the next generation.
         """
-        # Adjust the population's fitness
-        self.adjust_population_fitness()
+        if parent_genome is None:
+            # Adjust the population's fitness
+            self.adjust_population_fitness()
 
-        # Kill a percentage of the population and get the amount to replace
-        amt_to_replace = self.kill_percentage(kill_percentage)
+            # Kill a percentage of the population and get the amount to replace
+            amt_to_replace = self.kill_percentage(kill_percentage)
 
-        # Create children from the fittest genomes to replace the genomes that were killed
-        pop_by_fitness = sorted(self.get_population(), key=lambda g: g.get_fitness(), reverse=True)
-        genome_index = 1
-        while amt_to_replace > 0:
-            child = self.cross(pop_by_fitness[genome_index], pop_by_fitness[genome_index + 1])
-            self.add_genome(child)
-            if genome_index >= len(pop_by_fitness) - 2:
-                genome_index = 0
-            else:
-                genome_index += 1
-            amt_to_replace -= 1
+            # Create children from the fittest genomes to replace the genomes that were killed
+            pop_by_fitness = sorted(self.get_population(), key=lambda g: g.get_fitness(), reverse=True)
+            genome_index = 1
+            while amt_to_replace > 0:
+                child = self.cross(pop_by_fitness[genome_index], pop_by_fitness[genome_index + 1])
+                self.add_genome(child)
+                if genome_index >= len(pop_by_fitness) - 2:
+                    genome_index = 0
+                else:
+                    genome_index += 1
+                amt_to_replace -= 1
+        else:
+            parent_genome.set_fitness(0.0)
+            self.create_initial_population(len(self.get_population()), parent_genome=parent_genome)
 
         # Mutate the population
         if mutate:
