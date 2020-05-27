@@ -5,6 +5,7 @@ import numpy as np
 from ecosystem import Ecosystem
 
 
+POPULATION = 100
 GENERATIONS = 30
 
 # Set up environment
@@ -12,19 +13,21 @@ env = gym.make('CartPole-v0')
 
 # Set up ecosystem
 ecosystem = Ecosystem()
-ecosystem.create_initial_population(30, input_length=4, output_length=2)
+ecosystem.create_initial_population(POPULATION, input_size=4, output_size=2)
 
 # Start the evolution
 for generation in range(GENERATIONS):
     genomes = ecosystem.get_population()
-    for i in range(len(genomes)):
-        genome = genomes[i]
+    for i, genome in enumerate(genomes):
         observation = env.reset()
         done = False
         while not done:
             env.render()
             action = np.array(genome(observation)).argmax()
             observation, reward, done, info = env.step(action)
-            genome.set_fitness(genome.get_fitness() + reward)
-            print(f'Genome: {i}', ecosystem)
+            genome.fitness += reward
+            print(f'{ecosystem}  Genome: {i + 1}  Fitness: {genome.fitness}', end='\r')
+        print()
     ecosystem.next_generation()
+
+env.close()

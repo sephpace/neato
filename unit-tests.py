@@ -1,11 +1,11 @@
 
-import unittest
-import random
 from copy import copy
+import random
+import unittest
 
-from genome import Genome, Node, Connection, GenomeError
-from ecosystem import Ecosystem, Species, EcosystemError
 import activations
+from ecosystem import Ecosystem, Species, EcosystemError
+from genome import Genome, Node, Connection, GenomeError
 
 
 class TestEcosystem(unittest.TestCase):
@@ -20,11 +20,11 @@ class TestEcosystem(unittest.TestCase):
         g.add_connection(0, 3, weight=0.4)
         g.add_connection(1, 2, weight=0.4)
         g.add_connection(1, 3, weight=0.4)
-        self.assertEqual(len(e.get_species()), 0, msg)
+        self.assertEqual(len(e.species), 0, msg)
         e.add_genome(g)
-        self.assertEqual(len(e.get_species()), 1, msg)
-        self.assertEqual(e.get_species()[0].get_representative(), g, msg)
-        self.assertEqual(e.get_species()[0][0], g, msg)
+        self.assertEqual(len(e.species), 1, msg)
+        self.assertEqual(e.species[0].representative, g, msg)
+        self.assertEqual(e.species[0][0], g, msg)
         self.assertEqual(len(e.get_population()), 1, msg)
 
         # Test to make sure it adds the genome to the same species if they are close
@@ -35,9 +35,9 @@ class TestEcosystem(unittest.TestCase):
         g2.add_connection(1, 2, weight=0.4)
         g2.add_connection(1, 3, weight=0.4)
         e.add_genome(g2)
-        self.assertEqual(len(e.get_species()), 1, msg)
-        self.assertEqual(e.get_species()[0].get_representative(), g, msg)
-        self.assertEqual(e.get_species()[0][1], g2, msg)
+        self.assertEqual(len(e.species), 1, msg)
+        self.assertEqual(e.species[0].representative, g, msg)
+        self.assertEqual(e.species[0][1], g2, msg)
         self.assertEqual(len(e.get_population()), 2, msg)
 
         # Test to make sure a new species is created if the genome is distant from the current species
@@ -52,9 +52,9 @@ class TestEcosystem(unittest.TestCase):
         g3.add_node(2)
         g3.add_node(3)
         e.add_genome(g3)
-        self.assertEqual(len(e.get_species()), 2, msg)
-        self.assertEqual(e.get_species()[1].get_representative(), g3, msg)
-        self.assertEqual(e.get_species()[1][0], g3, msg)
+        self.assertEqual(len(e.species), 2, msg)
+        self.assertEqual(e.species[1].representative, g3, msg)
+        self.assertEqual(e.species[1][0], g3, msg)
         self.assertEqual(len(e.get_population()), 3, msg)
 
     def test_adjust_fitness(self):
@@ -91,21 +91,21 @@ class TestEcosystem(unittest.TestCase):
         g4.add_node(3)
 
         # Set genome fitness
-        g.set_fitness(10)
-        g2.set_fitness(12)
-        g3.set_fitness(22)
-        g4.set_fitness(24)
+        g.fitness = 10
+        g2.fitness = 12
+        g3.fitness = 22
+        g4.fitness = 24
 
         # Test to make sure it doesn't change if there are no different genomes
         e.add_genome(g)
         e.adjust_fitness(g)
-        self.assertEqual(g.get_fitness(), 10, msg)
+        self.assertEqual(g.fitness, 10, msg)
 
         e.add_genome(g2)
         e.adjust_fitness(g)
         e.adjust_fitness(g2)
-        self.assertEqual(g.get_fitness(), 10, msg)
-        self.assertEqual(g2.get_fitness(), 12, msg)
+        self.assertEqual(g.fitness, 10, msg)
+        self.assertEqual(g2.fitness, 12, msg)
 
         # Test to make sure the fitness does change when there are different genomes
         e.add_genome(g3)
@@ -114,10 +114,10 @@ class TestEcosystem(unittest.TestCase):
         e.adjust_fitness(g2)
         e.adjust_fitness(g3)
         e.adjust_fitness(g4)
-        self.assertEqual(g.get_fitness(), 5, msg)
-        self.assertEqual(g2.get_fitness(), 6, msg)
-        self.assertEqual(g3.get_fitness(), 11, msg)
-        self.assertEqual(g4.get_fitness(), 12, msg)
+        self.assertEqual(g.fitness, 5, msg)
+        self.assertEqual(g2.fitness, 6, msg)
+        self.assertEqual(g3.fitness, 11, msg)
+        self.assertEqual(g4.fitness, 12, msg)
 
     def test_adjust_population_fitness(self):
         msg = 'Adjusted fitness incorrectly!'
@@ -153,74 +153,69 @@ class TestEcosystem(unittest.TestCase):
         g4.add_node(3)
 
         # Set genome fitness
-        g.set_fitness(10)
-        g2.set_fitness(12)
-        g3.set_fitness(22)
-        g4.set_fitness(24)
+        g.fitness = 10
+        g2.fitness = 12
+        g3.fitness = 22
+        g4.fitness = 24
 
         # Test to make sure it doesn't change if there are no different genomes
         e.add_genome(g)
         e.adjust_population_fitness()
-        self.assertEqual(g.get_fitness(), 10, msg)
+        self.assertEqual(g.fitness, 10, msg)
 
         e.add_genome(g2)
         e.adjust_population_fitness()
-        self.assertEqual(g.get_fitness(), 10, msg)
-        self.assertEqual(g2.get_fitness(), 12, msg)
+        self.assertEqual(g.fitness, 10, msg)
+        self.assertEqual(g2.fitness, 12, msg)
 
         # Test to make sure the fitness does change when there are different genomes
         e.add_genome(g3)
         e.add_genome(g4)
         e.adjust_population_fitness()
-        self.assertEqual(g.get_fitness(), 5, msg)
-        self.assertEqual(g2.get_fitness(), 6, msg)
-        self.assertEqual(g3.get_fitness(), 11, msg)
-        self.assertEqual(g4.get_fitness(), 12, msg)
+        self.assertEqual(g.fitness, 5, msg)
+        self.assertEqual(g2.fitness, 6, msg)
+        self.assertEqual(g3.fitness, 11, msg)
+        self.assertEqual(g4.fitness, 12, msg)
 
     def test_create_initial_population(self):
         e = Ecosystem()
+        population_size = 20
 
         # Test to make sure it catches invalid parameters
         msg = 'Invalid parameters!'
-        no_size = False
-        try:
-            e.create_initial_population(input_length=3, output_length=3)
-        except TypeError:
-            no_size = True
-        self.assertTrue(no_size, msg)
 
         no_parent = False
         try:
-            e.create_initial_population(20)
+            e.create_initial_population(population_size)
         except EcosystemError:
             no_parent = True
         self.assertTrue(no_parent, msg)
 
         no_input = False
         try:
-            e.create_initial_population(20, output_length=3)
+            e.create_initial_population(population_size, output_size=3)
         except EcosystemError:
             no_input = True
         self.assertTrue(no_input, msg)
 
         no_output = False
         try:
-            e.create_initial_population(20, input_length=3)
+            e.create_initial_population(population_size, input_size=3)
         except EcosystemError:
             no_output = True
         self.assertTrue(no_output, msg)
 
         # Test to make sure an inital population is created with input and output sizes
         msg = 'Failed to create initial population correctly!'
-        e.create_initial_population(20, input_length=3, output_length=3)
-        self.assertEqual(len(e.get_population()), 20, msg)
+        e.create_initial_population(population_size, input_size=3, output_size=3)
+        self.assertEqual(len(e.get_population()), population_size, msg)
         for g in e.get_population():
             input_count = 0
             output_count = 0
             for n in g.get_nodes():
-                if n.get_type() == 'input':
+                if n.type == 'input':
                     input_count += 1
-                elif n.get_type() == 'output':
+                elif n.type == 'output':
                     output_count += 1
             self.assertEqual(input_count, 3, msg)
             self.assertEqual(output_count, 3, msg)
@@ -248,14 +243,14 @@ class TestEcosystem(unittest.TestCase):
         # Test to make sure it creates the genome correctly
         msg = 'Genome not created correctly!'
         e.create_genome(2, 2)
-        self.assertEqual(len(e.get_species()[0]), 1, msg)
-        self.assertEqual(len(e.get_species()[0][0].get_nodes()), 4, msg)
+        self.assertEqual(len(e.species[0]), 1, msg)
+        self.assertEqual(len(e.species[0][0].get_nodes()), 4, msg)
         e.create_genome(2, 3)
-        self.assertEqual(len(e.get_species()[0]), 2, msg)
-        self.assertEqual(len(e.get_species()[0][1].get_nodes()), 5)
+        self.assertEqual(len(e.species[0]), 2, msg)
+        self.assertEqual(len(e.species[0][1].get_nodes()), 5)
         e.create_genome(45, 46)
-        self.assertEqual(len(e.get_species()[0]), 3, msg)
-        self.assertEqual(len(e.get_species()[0][2].get_nodes()), 91)
+        self.assertEqual(len(e.species[0]), 3, msg)
+        self.assertEqual(len(e.species[0][2].get_nodes()), 91)
 
     def test_cross(self):
         e = Ecosystem()
@@ -269,17 +264,17 @@ class TestEcosystem(unittest.TestCase):
 
         # Test child connections
         msg = 'Child connection doesn\'t exist within either parent!'
-        for c in child.get_connections():
-            self.assertTrue(g.get_connection(c.get_innovation_number()) is not None or g2.get_connection(c.get_innovation_number()) is not None, msg)
+        for c in child.connections:
+            self.assertTrue(g.get_connection(c.innovation_number) is not None or g2.get_connection(c.innovation_number) is not None, msg)
 
         # Test to make sure the child has the same amount of connections as the fitter parent
         msg = 'Child missing fitter parent connection(s)!'
-        self.assertEqual(len(child.get_connections()), len(g.get_connections()), msg)
+        self.assertEqual(len(child.connections), len(g.connections), msg)
 
         # Test child nodes
         msg = 'Child node doesn\'t exist within either parent!'
         for n in child.get_nodes():
-            self.assertTrue(g.get_node(n.get_id()) is not None or g2.get_node(n.get_id()) is not None, msg)
+            self.assertTrue(g.get_node(n.id) is not None or g2.get_node(n.id) is not None, msg)
 
         # Test to make sure the child has the same amount of nodes as the fitter parent
         msg = 'Child is missing fitter parent node(s)!'
@@ -287,9 +282,9 @@ class TestEcosystem(unittest.TestCase):
 
         # Test preference for fit parents
         msg = 'Child connection preferred less fit parent!'
-        for c in child.get_connections():
-            in_both = g.get_connection(c.get_innovation_number()) is not None and g2.get_connection(c.get_innovation_number()) is not None
-            in_fit_parent = g.get_connection(c.get_innovation_number()) is not None and g2.get_connection(c.get_innovation_number()) is None
+        for c in child.connections:
+            in_both = g.get_connection(c.innovation_number) is not None and g2.get_connection(c.innovation_number) is not None
+            in_fit_parent = g.get_connection(c.innovation_number) is not None and g2.get_connection(c.innovation_number) is None
             self.assertTrue(in_both or in_fit_parent, msg)
 
         # Add connections and nodes
@@ -298,7 +293,7 @@ class TestEcosystem(unittest.TestCase):
         g.add_connection(1, 2)
         g.add_connection(1, 3)
         g.add_node(0)
-        g.get_connections()[5].set_weight(0.4)
+        g.connections[5].weight = 0.4
 
         g2.add_connection(0, 2)
         g2.add_connection(0, 3)
@@ -309,25 +304,25 @@ class TestEcosystem(unittest.TestCase):
         g.add_node(2)
 
         # Assign fitness to genomes
-        g.set_fitness(10)
-        g2.set_fitness(5)
+        g.fitness = 10
+        g2.fitness = 5
 
         # Cross the genomes
         child = e.cross(g, g2)
 
         # Test child connections
         msg = 'Child connection doesn\'t exist within either parent!'
-        for c in child.get_connections():
-            self.assertTrue(g.get_connection(c.get_innovation_number()) is not None or g2.get_connection(c.get_innovation_number()) is not None, msg)
+        for c in child.connections:
+            self.assertTrue(g.get_connection(c.innovation_number) is not None or g2.get_connection(c.innovation_number) is not None, msg)
 
         # Test to make sure the child has the same amount of connections as the fitter parent
         msg = 'Child missing fitter parent connection(s)!'
-        self.assertEqual(len(child.get_connections()), len(g.get_connections()), msg)
+        self.assertEqual(len(child.connections), len(g.connections), msg)
 
         # Test child nodes
         msg = 'Child node doesn\'t exist within either parent!'
         for n in child.get_nodes():
-            self.assertTrue(g.get_node(n.get_id()) is not None or g2.get_node(n.get_id()) is not None, msg)
+            self.assertTrue(g.get_node(n.id) is not None or g2.get_node(n.id) is not None, msg)
 
         # Test to make sure the child has the same amount of nodes as the fitter parent
         msg = 'Child is missing fitter parent node(s)!'
@@ -335,31 +330,31 @@ class TestEcosystem(unittest.TestCase):
 
         # Test preference for fit parents
         msg = 'Child connection preferred less fit parent!'
-        for c in child.get_connections():
-            in_both = g.get_connection(c.get_innovation_number()) is not None and g2.get_connection(c.get_innovation_number()) is not None
-            in_fit_parent = g.get_connection(c.get_innovation_number()) is not None and g2.get_connection(c.get_innovation_number()) is None
+        for c in child.connections:
+            in_both = g.get_connection(c.innovation_number) is not None and g2.get_connection(c.innovation_number) is not None
+            in_fit_parent = g.get_connection(c.innovation_number) is not None and g2.get_connection(c.innovation_number) is None
             self.assertTrue(in_both or in_fit_parent, msg)
 
         # Swap the fitness and test again
-        g.set_fitness(5)
-        g2.set_fitness(10)
+        g.fitness = 5
+        g2.fitness = 10
 
         # Cross the genomes
         child = e.cross(g, g2)
 
         # Test child connections
         msg = 'Child connection doesn\'t exist within either parent!'
-        for c in child.get_connections():
-            self.assertTrue(g.get_connection(c.get_innovation_number()) is not None or g2.get_connection(c.get_innovation_number()) is not None, msg)
+        for c in child.connections:
+            self.assertTrue(g.get_connection(c.innovation_number) is not None or g2.get_connection(c.innovation_number) is not None, msg)
 
         # Test to make sure the child has the same amount of connections as the fitter parent
         msg = 'Child missing fitter parent connection(s)!'
-        self.assertEqual(len(child.get_connections()), len(g2.get_connections()), msg)
+        self.assertEqual(len(child.connections), len(g2.connections), msg)
 
         # Test child nodes
         msg = 'Child node doesn\'t exist within either parent!'
         for n in child.get_nodes():
-            self.assertTrue(g.get_node(n.get_id()) is not None or g2.get_node(n.get_id()) is not None, msg)
+            self.assertTrue(g.get_node(n.id) is not None or g2.get_node(n.id) is not None, msg)
 
         # Test to make sure the child has the same amount of nodes as the fitter parent
         msg = 'Child is missing fitter parent node(s)!'
@@ -367,9 +362,9 @@ class TestEcosystem(unittest.TestCase):
 
         # Test preference for fit parents
         msg = 'Child connection preferred less fit parent!'
-        for c in child.get_connections():
-            in_both = g.get_connection(c.get_innovation_number()) is not None and g2.get_connection(c.get_innovation_number()) is not None
-            in_fit_parent = g.get_connection(c.get_innovation_number()) is None and g2.get_connection(c.get_innovation_number()) is not None
+        for c in child.connections:
+            in_both = g.get_connection(c.innovation_number) is not None and g2.get_connection(c.innovation_number) is not None
+            in_fit_parent = g.get_connection(c.innovation_number) is None and g2.get_connection(c.innovation_number) is not None
             self.assertTrue(in_both or in_fit_parent, msg)
 
     def test_get_best_genome(self):
@@ -377,15 +372,15 @@ class TestEcosystem(unittest.TestCase):
         max_fitness = 100
 
         e = Ecosystem()
-        e.create_initial_population(pop_size, input_length=2, output_length=2)
+        e.create_initial_population(pop_size, input_size=2, output_size=2)
         pop = e.get_population()
         fitnesses = []
         for i in range(pop_size - 1):
             fitnesses.append(random.randrange(0, max_fitness - 1))
         fitnesses.insert(random.randint(0, pop_size - 1), max_fitness)
         for i in range(pop_size):
-            pop[i].set_fitness(fitnesses[i])
-        self.assertEqual(e.get_best_genome().get_fitness(), max_fitness)
+            pop[i].fitness = fitnesses[i]
+        self.assertEqual(e.get_best_genome().fitness, max_fitness)
 
     def test_get_distance(self):
         error_margin = 0.000000000001
@@ -468,7 +463,7 @@ class TestEcosystem(unittest.TestCase):
 
         # Test to make sure the species is removed if all its members are killed
         msg = 'Species not removed!'
-        self.assertEqual(len(e.get_species()), 0, msg)
+        self.assertEqual(len(e.species), 0, msg)
 
     def test_kill_percentage(self):
         e = Ecosystem(disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
@@ -507,17 +502,17 @@ class TestEcosystem(unittest.TestCase):
             g2_copy = g2.copy()
             g3_copy = g3.copy()
 
-            g_copy.set_fitness(random.randrange(0, 200))
-            g2_copy.set_fitness(random.randrange(0, 200))
-            g3_copy.set_fitness(random.randrange(0, 200))
+            g_copy.fitness = random.randrange(0, 200)
+            g2_copy.fitness = random.randrange(0, 200)
+            g3_copy.fitness = random.randrange(0, 200)
 
             e.add_genome(g_copy)
             e.add_genome(g2_copy)
             e.add_genome(g3_copy)
 
         e.kill_percentage(50)
-        for s in e.get_species():
-            self.assertAlmostEqual(len(s.get_genomes()), 5, msg=msg, delta=1)
+        for s in e.species:
+            self.assertAlmostEqual(len(s), 5, msg=msg, delta=1)
         self.assertAlmostEqual(len(e.get_population()), 15, msg=msg, delta=1)
 
         for i in range(5):
@@ -525,17 +520,17 @@ class TestEcosystem(unittest.TestCase):
             g2_copy = g2.copy()
             g3_copy = g3.copy()
 
-            g_copy.set_fitness(random.randrange(0, 200))
-            g2_copy.set_fitness(random.randrange(0, 200))
-            g3_copy.set_fitness(random.randrange(0, 200))
+            g_copy.fitness = random.randrange(0, 200)
+            g2_copy.fitness = random.randrange(0, 200)
+            g3_copy.fitness = random.randrange(0, 200)
 
             e.add_genome(g_copy)
             e.add_genome(g2_copy)
             e.add_genome(g3_copy)
 
         e.kill_percentage(25)
-        for s in e.get_species():
-            self.assertAlmostEqual(len(s.get_genomes()), 8, msg=msg, delta=1)
+        for s in e.species:
+            self.assertAlmostEqual(len(s), 8, msg=msg, delta=1)
         self.assertAlmostEqual(len(e.get_population()), 24, msg=msg, delta=1)
 
         for i in range(2):
@@ -543,22 +538,22 @@ class TestEcosystem(unittest.TestCase):
             g2_copy = g2.copy()
             g3_copy = g3.copy()
 
-            g_copy.set_fitness(random.randrange(0, 200))
-            g2_copy.set_fitness(random.randrange(0, 200))
-            g3_copy.set_fitness(random.randrange(0, 200))
+            g_copy.fitness = random.randrange(0, 200)
+            g2_copy.fitness = random.randrange(0, 200)
+            g3_copy.fitness = random.randrange(0, 200)
 
             e.add_genome(g_copy)
             e.add_genome(g2_copy)
             e.add_genome(g3_copy)
 
         e.kill_percentage(75)
-        for s in e.get_species():
-            self.assertAlmostEqual(len(s.get_genomes()), 3, msg=msg, delta=1)
+        for s in e.species:
+            self.assertAlmostEqual(len(s), 3, msg=msg, delta=1)
         self.assertAlmostEqual(len(e.get_population()), 9, msg=msg, delta=1)
 
         e.kill_percentage(12)
-        for s in e.get_species():
-            self.assertAlmostEqual(len(s.get_genomes()), 3, msg=msg, delta=1)
+        for s in e.species:
+            self.assertAlmostEqual(len(s), 3, msg=msg, delta=1)
         self.assertAlmostEqual(len(e.get_population()), 9, msg=msg, delta=1)
 
         # Test with a larger population
@@ -572,10 +567,10 @@ class TestEcosystem(unittest.TestCase):
     def test_next_generation(self):
         e = Ecosystem()
 
-        e.create_initial_population(100, input_length=2, output_length=2)
+        e.create_initial_population(100, input_size=2, output_size=2)
 
         for g in e.get_population():
-            g.set_fitness(random.randrange(0, 200))
+            g.fitness = random.randrange(0, 200)
 
         e.next_generation()
 
@@ -585,7 +580,7 @@ class TestEcosystem(unittest.TestCase):
 
         # Test to make sure the generation number is incremented
         msg = 'Generation number not incremented!'
-        self.assertEqual(e.get_generation(), 1, msg)
+        self.assertEqual(e.generation, 1, msg)
 
         e.next_generation()
 
@@ -595,7 +590,7 @@ class TestEcosystem(unittest.TestCase):
 
         # Test to make sure the generation number is incremented
         msg = 'Generation number not incremented!'
-        self.assertEqual(e.get_generation(), 2, msg)
+        self.assertEqual(e.generation, 2, msg)
 
         e.next_generation()
 
@@ -605,7 +600,7 @@ class TestEcosystem(unittest.TestCase):
 
         # Test to make sure the generation number is incremented
         msg = 'Generation number not incremented!'
-        self.assertEqual(e.get_generation(), 3, msg)
+        self.assertEqual(e.generation, 3, msg)
 
 
 class TestSpecies(unittest.TestCase):
@@ -615,25 +610,25 @@ class TestSpecies(unittest.TestCase):
 
         # Test to make sure attributes are set correctly.
         msg = 'Failed to assign species attributes correctly!'
-        self.assertEqual(s.get_id(), 0, msg)
-        self.assertEqual(s.get_representative(), g, msg)
+        self.assertEqual(s.id, 0, msg)
+        self.assertEqual(s.representative, g, msg)
         self.assertEqual(len(s), 1, msg)
-        self.assertEqual(len(s.get_genomes()), 1, msg)
+        self.assertEqual(len(s), 1, msg)
 
 
 class TestGenome(unittest.TestCase):
 
     def test_constructor(self):
-        input_length = 2
-        output_length = 2
+        input_size = 2
+        output_size = 2
 
-        g = Genome(input_length, output_length)
+        g = Genome(input_size, output_size)
 
         # Test if attributes are correct
         msg = 'Failed to assign genome attributes correctly!'
-        self.assertEqual(len(g.get_nodes()), input_length + output_length, msg)
-        self.assertEqual(len(g.get_connections()), 0)
-        self.assertEqual(g.get_fitness(), 0)
+        self.assertEqual(len(g.get_nodes()), input_size + output_size, msg)
+        self.assertEqual(len(g.connections), 0)
+        self.assertEqual(g.fitness, 0)
 
     def test__add_connection(self):
         g = Genome(2, 2)
@@ -641,41 +636,41 @@ class TestGenome(unittest.TestCase):
         # Test connecting input and output nodes
         msg = 'Failed connection to output node!'
         g.add_connection(0, 2)
-        self.assertEqual(len(g.get_connections()), 1, msg)
-        self.assertEqual(g.get_connections()[0].get_in_node(), 0, msg)
-        self.assertEqual(g.get_connections()[0].get_out_node(), 2, msg)
+        self.assertEqual(len(g.connections), 1, msg)
+        self.assertEqual(g.connections[0].in_node, 0, msg)
+        self.assertEqual(g.connections[0].out_node, 2, msg)
 
         g.add_connection(0, 3)
-        self.assertEqual(len(g.get_connections()), 2, msg)
-        self.assertEqual(g.get_connections()[1].get_in_node(), 0, msg)
-        self.assertEqual(g.get_connections()[1].get_out_node(), 3, msg)
+        self.assertEqual(len(g.connections), 2, msg)
+        self.assertEqual(g.connections[1].in_node, 0, msg)
+        self.assertEqual(g.connections[1].out_node, 3, msg)
 
         g.add_connection(1, 2)
-        self.assertEqual(len(g.get_connections()), 3, msg)
-        self.assertEqual(g.get_connections()[2].get_in_node(), 1, msg)
-        self.assertEqual(g.get_connections()[2].get_out_node(), 2, msg)
+        self.assertEqual(len(g.connections), 3, msg)
+        self.assertEqual(g.connections[2].in_node, 1, msg)
+        self.assertEqual(g.connections[2].out_node, 2, msg)
 
         g.add_connection(1, 3, 0.5)
-        self.assertEqual(len(g.get_connections()), 4, msg)
-        self.assertEqual(g.get_connections()[3].get_in_node(), 1, msg)
-        self.assertEqual(g.get_connections()[3].get_out_node(), 3, msg)
-        self.assertEqual(g.get_connections()[3].get_weight(), 0.5, msg)
+        self.assertEqual(len(g.connections), 4, msg)
+        self.assertEqual(g.connections[3].in_node, 1, msg)
+        self.assertEqual(g.connections[3].out_node, 3, msg)
+        self.assertEqual(g.connections[3].weight, 0.5, msg)
 
         # # Test connecting to hidden nodes
         msg = 'Failed connection to hidden node!'
         g.add_node(0)
         g.add_connection(1, 4, 0.7)
-        self.assertEqual(len(g.get_connections()), 7, msg)
-        self.assertEqual(g.get_connections()[6].get_in_node(), 1, msg)
-        self.assertEqual(g.get_connections()[6].get_out_node(), 4, msg)
-        self.assertEqual(g.get_connections()[6].get_weight(), 0.7, msg)
+        self.assertEqual(len(g.connections), 7, msg)
+        self.assertEqual(g.connections[6].in_node, 1, msg)
+        self.assertEqual(g.connections[6].out_node, 4, msg)
+        self.assertEqual(g.connections[6].weight, 0.7, msg)
 
         g.add_node(2)
         g.add_connection(4, 5, 0.9)
-        self.assertEqual(len(g.get_connections()), 10, msg)
-        self.assertEqual(g.get_connections()[9].get_in_node(), 4, msg)
-        self.assertEqual(g.get_connections()[9].get_out_node(), 5, msg)
-        self.assertEqual(g.get_connections()[9].get_weight(), 0.9, msg)
+        self.assertEqual(len(g.connections), 10, msg)
+        self.assertEqual(g.connections[9].in_node, 4, msg)
+        self.assertEqual(g.connections[9].out_node, 5, msg)
+        self.assertEqual(g.connections[9].weight, 0.9, msg)
 
         # Make sure duplicate connections aren't created
         msg = 'Duplicate connection added!'
@@ -683,7 +678,7 @@ class TestGenome(unittest.TestCase):
             g.add_connection(0, 2)
         except GenomeError:
             pass
-        self.assertEqual(len(g.get_connections()), 10, msg)
+        self.assertEqual(len(g.connections), 10, msg)
 
         # Make sure backwards connections aren't created
         msg = 'Backward connection added!'
@@ -691,7 +686,7 @@ class TestGenome(unittest.TestCase):
             g.add_connection(5, 4)
         except GenomeError:
             pass
-        self.assertEqual(len(g.get_connections()), 10, msg)
+        self.assertEqual(len(g.connections), 10, msg)
 
         # Make sure you can't connect inputs to inputs or outputs to outputs
         msg = 'Input node connected to input node!'
@@ -728,22 +723,22 @@ class TestGenome(unittest.TestCase):
         g.add_connection(0, 1)
         g.add_node(0)
         self.assertEqual(len(g.get_nodes()), 3, msg)
-        self.assertEqual(len(g.get_connections()), 3, msg)
-        self.assertFalse(g.get_connections()[0].is_expressed(), msg)
-        self.assertTrue(g.get_connections()[1].is_expressed(), msg)
-        self.assertTrue(g.get_connections()[2].is_expressed(), msg)
-        self.assertEqual(g.get_connections()[0].get_weight(), g.get_connections()[1].get_weight(), msg)
-        self.assertEqual(g.get_connections()[2].get_weight(), 1.0, msg)
+        self.assertEqual(len(g.connections), 3, msg)
+        self.assertFalse(g.connections[0].expressed, msg)
+        self.assertTrue(g.connections[1].expressed, msg)
+        self.assertTrue(g.connections[2].expressed, msg)
+        self.assertEqual(g.connections[0].weight, g.connections[1].weight, msg)
+        self.assertEqual(g.connections[2].weight, 1.0, msg)
         self.assertEqual(g.get_nodes()[2].get_activation(), activations.modified_sigmoid, msg)
 
         g.add_node(1, activation=activations.absolute)
         self.assertEqual(len(g.get_nodes()), 4, msg)
-        self.assertEqual(len(g.get_connections()), 5, msg)
-        self.assertFalse(g.get_connections()[1].is_expressed(), msg)
-        self.assertTrue(g.get_connections()[3].is_expressed(), msg)
-        self.assertTrue(g.get_connections()[4].is_expressed(), msg)
-        self.assertEqual(g.get_connections()[1].get_weight(), g.get_connections()[3].get_weight(), msg)
-        self.assertEqual(g.get_connections()[4].get_weight(), 1.0, msg)
+        self.assertEqual(len(g.connections), 5, msg)
+        self.assertFalse(g.connections[1].expressed, msg)
+        self.assertTrue(g.connections[3].expressed, msg)
+        self.assertTrue(g.connections[4].expressed, msg)
+        self.assertEqual(g.connections[1].weight, g.connections[3].weight, msg)
+        self.assertEqual(g.connections[4].weight, 1.0, msg)
         self.assertEqual(g.get_nodes()[3].get_activation(), activations.absolute, msg)
 
     def test_connections_at_max(self):
@@ -784,17 +779,17 @@ class TestGenome(unittest.TestCase):
         g.add_node(0)
         gc = g.copy()
         self.assertEqual(len(g.get_nodes()), len(gc.get_nodes()), msg)
-        self.assertEqual(len(g.get_connections()), len(gc.get_connections()), msg)
-        for i in range(len(g.get_connections())):
-            self.assertEqual(g.get_connections()[i].get_weight(), gc.get_connections()[i].get_weight(), msg)
+        self.assertEqual(len(g.connections), len(gc.connections), msg)
+        for i in range(len(g.connections)):
+            self.assertEqual(g.connections[i].weight, gc.connections[i].weight, msg)
 
         # Test to make sure the copy doesn't change when the original does
         msg = 'Copy changes when original changes!'
         g.add_node(1)
-        g.get_connections()[0].set_weight(50)
+        g.connections[0].weight = 50
         self.assertNotEqual(len(g.get_nodes()), len(gc.get_nodes()), msg)
-        self.assertNotEqual(len(g.get_connections()), len(gc.get_connections()), msg)
-        self.assertNotEqual(g.get_connections()[0].get_weight(), gc.get_connections()[0].get_weight(), msg)
+        self.assertNotEqual(len(g.connections), len(gc.connections), msg)
+        self.assertNotEqual(g.connections[0].weight, gc.connections[0].weight, msg)
 
     def test_evaluate(self):
         error_margin = 0.000000000001
@@ -856,8 +851,8 @@ class TestGenome(unittest.TestCase):
 
         # Test to make sure empty genomes return the correct values for output nodes
         msg = 'Disconnected output node returned invalid value!'
-        self.assertEqual(g.get_node_max_distance(g.get_node(2)), -1, msg)
-        self.assertEqual(g.get_node_max_distance(g.get_node(3)), -1, msg)
+        self.assertEqual(g.get_node_max_distance(g.get_node(2).id), -1, msg)
+        self.assertEqual(g.get_node_max_distance(g.get_node(3).id), -1, msg)
 
         # Add nodes and connections
         g.add_connection(0, 2, weight=-0.7)
@@ -873,19 +868,19 @@ class TestGenome(unittest.TestCase):
         # Test the values of each node distance to make sure they are correct
         correct_distances = [0, 0, 3, 1, 1, 2]
         for i in range(len(g.get_nodes())):
-            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].get_id()), correct_distances[i], msg)
+            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].id), correct_distances[i], msg)
 
         # Add a node and test again
         g.add_node(8)
         correct_distances = [0, 0, 4, 1, 1, 3, 2]
         for i in range(len(g.get_nodes())):
-            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].get_id()), correct_distances[i], msg)
+            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].id), correct_distances[i], msg)
 
         # Add connection and test again
         g.add_connection(6, 3)
         correct_distances = [0, 0, 4, 3, 1, 3, 2]
         for i in range(len(g.get_nodes())):
-            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].get_id()), correct_distances[i], msg)
+            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].id), correct_distances[i], msg)
 
     def test_mutate_add_connection(self):
         g = Genome(2, 2)
@@ -893,27 +888,27 @@ class TestGenome(unittest.TestCase):
         # Test adding a connection
         msg = 'Connection added incorrectly!'
         g.mutate_add_connection()
-        self.assertEqual(len(g.get_connections()), 1, msg)
-        self.assertEqual(g.get_connections()[0].get_innovation_number(), 0, msg)
-        self.assertTrue(g.get_connections()[0].get_in_node() in [n.get_id() for n in g.get_nodes()], msg)
-        self.assertTrue(g.get_connections()[0].get_out_node() in [n.get_id() for n in g.get_nodes()], msg)
-        self.assertTrue(-1.0 <= g.get_connections()[0].get_weight() <= 1.0, msg)
-        self.assertTrue(g.get_connections()[0].is_expressed(), msg)
-        self.assertNotEqual(g.get_connections()[0].get_in_node(), g.get_connections()[0].get_out_node())
+        self.assertEqual(len(g.connections), 1, msg)
+        self.assertEqual(g.connections[0].innovation_number, 0, msg)
+        self.assertTrue(g.connections[0].in_node in [n.id for n in g.get_nodes()], msg)
+        self.assertTrue(g.connections[0].out_node in [n.id for n in g.get_nodes()], msg)
+        self.assertTrue(-1.0 <= g.connections[0].weight <= 1.0, msg)
+        self.assertTrue(g.connections[0].expressed, msg)
+        self.assertNotEqual(g.connections[0].in_node, g.connections[0].out_node)
 
         # Test to make sure connections are always added (unless at max)
         msg = 'Connection not added!'
         g.mutate_add_connection()
-        self.assertEqual(len(g.get_connections()), 2, msg)
+        self.assertEqual(len(g.connections), 2, msg)
         g.mutate_add_connection()
-        self.assertEqual(len(g.get_connections()), 3, msg)
+        self.assertEqual(len(g.connections), 3, msg)
         g.mutate_add_connection()
-        self.assertEqual(len(g.get_connections()), 4, msg)
+        self.assertEqual(len(g.connections), 4, msg)
 
         # Test to make sure it doesn't go above the maximum connections
         msg = 'Connections exceeded maximum amount!'
         g.mutate_add_connection()
-        self.assertEqual(len(g.get_connections()), 4, msg)  # Shouldn't go past 4
+        self.assertEqual(len(g.connections), 4, msg)  # Shouldn't go past 4
 
     def test_mutate_add_node(self):
         g = Genome(1, 1)
@@ -928,16 +923,16 @@ class TestGenome(unittest.TestCase):
         g.mutate_add_connection()
         g.mutate_add_node()
         self.assertEqual(len(g.get_nodes()), 3, msg)
-        self.assertEqual(g.get_nodes()[2].get_id(), 2, msg)
-        self.assertEqual(g.get_nodes()[2].get_type(), 'hidden', msg)
-        self.assertEqual(g.get_nodes()[2].get_value(), 0.0, msg)
-        self.assertEqual(len(g.get_connections()), 3, msg)
-        self.assertEqual(g.get_connections()[0].get_weight(), g.get_connections()[1].get_weight(), msg)
-        self.assertEqual(g.get_connections()[2].get_weight(), 1.0, msg)
+        self.assertEqual(g.get_nodes()[2].id, 2, msg)
+        self.assertEqual(g.get_nodes()[2].type, 'hidden', msg)
+        self.assertEqual(g.get_nodes()[2].value, 0.0, msg)
+        self.assertEqual(len(g.connections), 3, msg)
+        self.assertEqual(g.connections[0].weight, g.connections[1].weight, msg)
+        self.assertEqual(g.connections[2].weight, 1.0, msg)
 
         # Test to make sure you can't add a node without any expressed connections
         msg = "Node added to disabled connection!"
-        for c in g.get_connections():
+        for c in g.connections:
             c.disable()
         g.mutate_add_node()
         self.assertEqual(len(g.get_nodes()), 3, msg)
@@ -950,33 +945,38 @@ class TestGenome(unittest.TestCase):
         # Test with one connection
         g.add_connection(0, 1, weight=5)
         g.mutate_random_weight()
-        self.assertNotEqual(g.get_connections()[0].get_weight(), 5, msg)
-        self.assertTrue(-1.0, g.get_connections()[0].get_weight() <= 1.0)
+        self.assertNotEqual(g.connections[0].weight, 5, msg)
+        self.assertTrue(-1.0, g.connections[0].weight <= 1.0)
 
         # Test with multiple connections
         g.add_node(0)
-        before = [c.get_weight() for c in g.get_connections()]
+        before = [c.weight for c in g.connections]
         g.mutate_random_weight()
-        after = [c.get_weight() for c in g.get_connections()]
+        after = [c.weight for c in g.connections]
         self.assertNotEqual(before, after, msg)
 
     def test_mutate_shift_weight(self):
         g = Genome(1, 1)
+        steps = [0.1, 0.2, 0.3, 0.4, 0.5, 1.0, 5.0]
+        error_margin = 0.000000000001
 
         msg = 'Failed to shift weight correctly!'
 
         # Test with one connection
         g.add_connection(0, 1, weight=0.0)
-        g.mutate_shift_weight(step=0.1)
-        self.assertNotEqual(g.get_connections()[0].get_weight(), 0.0, msg)
-        self.assertTrue(g.get_connections()[0].get_weight() == 0.1 or g.get_connections()[0].get_weight() == -0.1)
+        for step in steps:
+            current_weight = g.connections[0].weight
+            g.mutate_shift_weight(step=step)
+            self.assertNotEqual(g.connections[0].weight, current_weight, msg)
+            self.assertAlmostEqual(abs(g.connections[0].weight - current_weight), step, delta=error_margin)
 
         # Test with multiple connections
         g.add_node(0)
-        before = [c.get_weight() for c in g.get_connections()]
-        g.mutate_shift_weight()
-        after = [c.get_weight() for c in g.get_connections()]
-        self.assertNotEqual(before, after, msg)
+        for step in steps:
+            before = [c.weight for c in g.connections]
+            g.mutate_shift_weight(step=step)
+            after = [c.weight for c in g.connections]
+            self.assertNotEqual(before, after, msg)
 
     def test_mutate_toggle_connection(self):
         g = Genome(1, 1)
@@ -986,34 +986,16 @@ class TestGenome(unittest.TestCase):
         # Test with one connection
         g.add_connection(0, 1)
         g.mutate_toggle_connection()
-        self.assertFalse(g.get_connections()[0].is_expressed(), msg)
+        self.assertFalse(g.connections[0].expressed, msg)
         g.mutate_toggle_connection()
-        self.assertTrue(g.get_connections()[0].is_expressed(), msg)
+        self.assertTrue(g.connections[0].expressed, msg)
 
         # Test with multiple connections
         g.add_node(0)
-        before = [c.is_expressed() for c in g.get_connections()]
+        before = [c.expressed for c in g.connections]
         g.mutate_toggle_connection()
-        after = [c.is_expressed() for c in g.get_connections()]
+        after = [c.expressed for c in g.connections]
         self.assertNotEqual(before, after, msg)
-
-    def test_set_connections(self):
-        g = Genome(2, 2)
-
-        # Test to make sure connections are set correctly
-        msg = 'Connections set incorrectly!'
-        connections = [Connection(0, 0, 2), Connection(1, 0, 3), Connection(2, 1, 2), Connection(3, 1, 3)]
-        g.set_connections(connections)
-        self.assertEqual(g.get_connections(), connections, msg)
-
-    def test_set_fitness(self):
-        g = Genome(0, 0)
-
-        # Test to make sure fitness is set correctly
-        msg = 'Fitness set incorrectly!'
-        fitness = 50
-        g.set_fitness(fitness)
-        self.assertEqual(g.get_fitness(), fitness, msg)
 
     def test_set_nodes(self):
         g = Genome(1, 1)
@@ -1048,8 +1030,8 @@ class TestGenome(unittest.TestCase):
         # Test to make sure all of the connections are sorted in a feed-forward manner
         msg = 'Connections are not feed-forward!'
         g.sort_connections()
-        for i in range(len(g.get_connections())):
-            self.assertTrue(g.get_connections()[i].get_in_node() not in [c.get_out_node() for c in g.get_connections()[i:]], msg)
+        for i in range(len(g.connections)):
+            self.assertTrue(g.connections[i].in_node not in [c.out_node for c in g.connections[i:]], msg)
 
 
 class TestNode(unittest.TestCase):
@@ -1057,33 +1039,33 @@ class TestNode(unittest.TestCase):
         # Test node attribute values
         msg = 'Failed to assign node attributes correctly!'
         n = Node(0, 'input')
-        self.assertEqual(n.get_id(), 0, msg)
-        self.assertEqual(n.get_type(), 'input', msg)
+        self.assertEqual(n.id, 0, msg)
+        self.assertEqual(n.type, 'input', msg)
         self.assertIsNone(n.get_activation(), msg)
-        self.assertEqual(n.get_value(), 0.0, msg)
+        self.assertEqual(n.value, 0.0, msg)
 
         n2 = Node(1, 'output', activation=activations.sigmoid, value=5.4)
-        self.assertEqual(n2.get_id(), 1, msg)
-        self.assertEqual(n2.get_type(), 'output', msg)
+        self.assertEqual(n2.id, 1, msg)
+        self.assertEqual(n2.type, 'output', msg)
         self.assertEqual(n2.get_activation(), activations.sigmoid, msg)
-        self.assertEqual(n2.get_value(), 5.4, msg)
+        self.assertEqual(n2.value, 5.4, msg)
 
         n3 = Node(2, 'hidden', activation=activations.absolute, value=-0.3)
-        self.assertEqual(n3.get_id(), 2, msg)
-        self.assertEqual(n3.get_type(), 'hidden', msg)
+        self.assertEqual(n3.id, 2, msg)
+        self.assertEqual(n3.type, 'hidden', msg)
         self.assertEqual(n3.get_activation(), activations.absolute, msg)
-        self.assertEqual(n3.get_value(), -0.3, msg)
+        self.assertEqual(n3.value, -0.3, msg)
 
     def test_activate(self):
         # Test to make sure the value is run through the activation function correctly
         msg = 'Failed to set node activation correctly!'
         n = Node(0, 'hidden', value=-0.8)
         n.activate()
-        self.assertAlmostEqual(n.get_value(), 0.01945508456819303, msg=msg, delta=0.000000000001)
+        self.assertAlmostEqual(n.value, 0.01945508456819303, msg=msg, delta=0.000000000001)
 
         n2 = Node(0, 'hidden', activation=activations.absolute, value=-1.0)
         n2.activate()
-        self.assertEqual(n2.get_value(), 1.0, msg)
+        self.assertEqual(n2.value, 1.0, msg)
 
     def test_copy(self):
         n = Node(0, 'hidden')
@@ -1092,17 +1074,17 @@ class TestNode(unittest.TestCase):
         # Test to make sure the copies are the same
         msg = 'Copy is not the same as the original!'
         self.assertEqual(n, nc, msg)
-        self.assertEqual(n.get_id(), nc.get_id(), msg)
-        self.assertEqual(n.get_type(), nc.get_type(), msg)
+        self.assertEqual(n.id, nc.id, msg)
+        self.assertEqual(n.type, nc.type, msg)
         self.assertEqual(n.get_activation(), nc.get_activation(), msg)
-        self.assertEqual(n.get_value(), nc.get_value(), msg)
+        self.assertEqual(n.value, nc.value, msg)
 
         # Test to make sure the copy doesn't change if the original does
         msg = 'Copy changed when the original was changed!'
         n.set_activation(activations.absolute)
-        n.set_value(50)
+        n.value = 50
         self.assertNotEqual(n.get_activation(), nc.get_activation(), msg)
-        self.assertNotEqual(n.get_value(), nc.get_value(), msg)
+        self.assertNotEqual(n.value, nc.value, msg)
 
     def test_get_innovation_number(self):
         g = Genome(10, 10)
@@ -1137,31 +1119,24 @@ class TestNode(unittest.TestCase):
         n.set_activation(activations.absolute)
         self.assertIsNone(n.get_activation(), msg)
 
-    def test_set_value(self):
-        # Test to make sure it returns the correct value
-        msg = 'Failed to set node value correctly!'
-        n = Node(0, 'input')
-        n.set_value(39)
-        self.assertEqual(n.get_value(), 39, msg)
-
 
 class TestConnection(unittest.TestCase):
     def test_constructor(self):
         # Test connection attribute values
         msg = 'Failed to assign connection attributes correctly!'
         c = Connection(0, 0, 2)
-        self.assertEqual(c.get_innovation_number(), 0, msg)
-        self.assertEqual(c.get_in_node(), 0, msg)
-        self.assertEqual(c.get_out_node(), 2, msg)
-        self.assertTrue(-1.0 <= c.get_weight() <= 1.0, msg)
-        self.assertTrue(c.is_expressed(), msg)
+        self.assertEqual(c.innovation_number, 0, msg)
+        self.assertEqual(c.in_node, 0, msg)
+        self.assertEqual(c.out_node, 2, msg)
+        self.assertTrue(-1.0 <= c.weight <= 1.0, msg)
+        self.assertTrue(c.expressed, msg)
 
         c2 = Connection(1, 57, 9, weight=-0.4, expressed=False)
-        self.assertEqual(c2.get_innovation_number(), 1, msg)
-        self.assertEqual(c2.get_in_node(), 57, msg)
-        self.assertEqual(c2.get_out_node(), 9, msg)
-        self.assertEqual(c2.get_weight(), -0.4, msg)
-        self.assertFalse(c2.is_expressed(), msg)
+        self.assertEqual(c2.innovation_number, 1, msg)
+        self.assertEqual(c2.in_node, 57, msg)
+        self.assertEqual(c2.out_node, 9, msg)
+        self.assertEqual(c2.weight, -0.4, msg)
+        self.assertFalse(c2.expressed, msg)
 
     def test_copy(self):
         c = Connection(0, 0, 2)
@@ -1170,56 +1145,56 @@ class TestConnection(unittest.TestCase):
         # Test to make sure the copies are the same
         msg = 'Copy is not the same as the original!'
         self.assertEqual(c, cc, msg)
-        self.assertEqual(c.get_innovation_number(), cc.get_innovation_number(), msg)
-        self.assertEqual(c.get_in_node(), cc.get_in_node(), msg)
-        self.assertEqual(c.get_out_node(), cc.get_out_node(), msg)
-        self.assertEqual(c.get_weight(), cc.get_weight(), msg)
-        self.assertEqual(c.is_expressed(), cc.is_expressed(), msg)
+        self.assertEqual(c.innovation_number, cc.innovation_number, msg)
+        self.assertEqual(c.in_node, cc.in_node, msg)
+        self.assertEqual(c.out_node, cc.out_node, msg)
+        self.assertEqual(c.weight, cc.weight, msg)
+        self.assertEqual(c.expressed, cc.expressed, msg)
 
         # Test to make sure the copy doesn't change if the original does
         msg = 'Copy changed when the original was changed!'
-        c.set_weight(50)
+        c.weight = 50
         c.disable()
-        self.assertNotEqual(c.get_weight(), cc.get_weight(), msg)
-        self.assertNotEqual(c.is_expressed(), cc.is_expressed(), msg)
+        self.assertNotEqual(c.weight, cc.weight, msg)
+        self.assertNotEqual(c.expressed, cc.expressed, msg)
 
     def test_disable(self):
         # Test to make sure it returns the correct value
         msg = 'Failed to disable connection correctly!'
         c = Connection(0, 0, 2)
         c.disable()
-        self.assertFalse(c.is_expressed(), msg)
+        self.assertFalse(c.expressed, msg)
 
     def test_enable(self):
         # Test to make sure it returns the correct value
         msg = 'Failed to enable connection correctly'
         c = Connection(0, 0, 2, expressed=False)
         c.enable()
-        self.assertTrue(c.is_expressed(), msg)
+        self.assertTrue(c.expressed, msg)
 
     def test_set_weight(self):
         # Test to make sure it returns the correct value
         msg = 'Failed to set connection weight correctly!'
         c = Connection(0, 0, 2)
-        c.set_weight(117)
-        self.assertEqual(c.get_weight(), 117, msg)
+        c.weight = 117
+        self.assertEqual(c.weight, 117, msg)
 
     def test_set_random_weight(self):
         # Test to make sure it returns a random value between -1 and 1
         msg = 'Failed to set connection weight correctly!'
         c = Connection(0, 0, 2, weight=5)
         c.set_random_weight()
-        self.assertNotEqual(c.get_weight(), 5, msg)
-        self.assertTrue(-1.0 <= c.get_weight() <= 1.0, msg)
+        self.assertNotEqual(c.weight, 5, msg)
+        self.assertTrue(-1.0 <= c.weight <= 1.0, msg)
 
     def test_toggle(self):
         # Test to make sure the connection's expression toggles correctly
         msg = 'Failed to toggle connection\'s expression correctly!'
         c = Connection(0, 0, 2)
         c.toggle()
-        self.assertFalse(c.is_expressed(), msg)
+        self.assertFalse(c.expressed, msg)
         c.toggle()
-        self.assertTrue(c.is_expressed(), msg)
+        self.assertTrue(c.expressed, msg)
 
 
 if __name__ == '__main__':
