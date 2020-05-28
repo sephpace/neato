@@ -14,16 +14,16 @@ class Ecosystem:
 
     Attributes:
         __connection_log (dict):      A dictionary of existing connections within the ecosystem used to assign unique
-                                          innovation numbers
+                                          innovation numbers.
         disjoint_coefficient (float): A coefficient that adjusts the importance of disjoint connections when determining
-                                          genome distance
+                                          genome distance.
         excess_coefficient (float):   A coefficient that adjusts the importance of excess connections when determining
-                                          genome distance
-        generation (int):             The current generation number
-        species (list):               A list of species present in the ecosystem
-        threshold (float):            The threshold of closeness for two genomes to be considered part of the same species
+                                          genome distance.
+        generation (int):             The current generation number.
+        species (list):               A list of species present in the ecosystem.
+        threshold (float):            The threshold of closeness for two genomes to be considered part of the same species.
         weight_coefficient (float):   A coefficient that adjusts the importance of the average weight for connections when
-                                          determining genome distance
+                                          determining genome distance.
     """
 
     def __init__(self, threshold=0.5, disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4):
@@ -31,13 +31,13 @@ class Ecosystem:
         Constructor.
 
         Args:
-            threshold (float):            The threshold of closeness for two genomes to be considered part of the same species
+            threshold (float):            The threshold of closeness for two genomes to be considered part of the same species.
             disjoint_coefficient (float): A coefficient that adjusts the importance of disjoint connections when determining
-                                              genome distance
+                                              genome distance.
             excess_coefficient (float):   A coefficient that adjusts the importance of excess connections when determining
-                                              genome distance
+                                              genome distance.
             weight_coefficient (float):   A coefficient that adjusts the importance of the average weight for connections when
-                                              determining genome distance
+                                              determining genome distance.
         """
         self.threshold = threshold
         self.disjoint_coefficient = disjoint_coefficient
@@ -57,7 +57,7 @@ class Ecosystem:
         enough to any that do exist, it creates a new species and sets the new genome as its representative.
 
         Args:
-            genome (Genome): The genome to add to a species in the ecosystem
+            genome (Genome): The genome to add to a species in the ecosystem.
         """
         genome.ecosystem = self
         # Look for a species that the genome fits into and add it if found
@@ -96,8 +96,8 @@ class Ecosystem:
         Creates a genome and adds it to a species.
 
         Args:
-            input_amt (int):  The amount of input nodes for the genome
-            output_amt (int): The amount of output nodes for the genome
+            input_amt (int):  The amount of input nodes for the genome.
+            output_amt (int): The amount of output nodes for the genome.
         """
         genome = Genome(input_amt, output_amt, ecosystem=self)
         self.add_genome(genome)
@@ -113,11 +113,11 @@ class Ecosystem:
         If the ecosystem contains genomes already, they will be replaced.
 
         Args:
-            population_size (int):  The amount of genomes in the initial population
-            parent_genome (Genome): An optional genome to base the rest of the population on
-            input_size (int):       The amount of input nodes for each genome in the population
-            output_size (int):      The amount of output nodes for each genome in the population
-            mutate (bool):          If True, each newly created genome will be given a random mutation
+            population_size (int):  The amount of genomes in the initial population.
+            parent_genome (Genome): An optional genome to base the rest of the population on.
+            input_size (int):       The amount of input nodes for each genome in the population.
+            output_size (int):      The amount of output nodes for each genome in the population.
+            mutate (bool):          If True, each newly created genome will be given a random mutation.
         """
         # Determine how to create genomes
         if parent_genome is not None:
@@ -150,11 +150,11 @@ class Ecosystem:
         Returns a combination of the two given genomes.
 
         Args:
-            genome1 (Genome): The first genome to cross
-            genome2 (Genome): The second genome to cross
+            genome1 (Genome): The first genome to cross.
+            genome2 (Genome): The second genome to cross.
 
         Returns:
-            (Genome): A genome that is a combination of the two given genomes
+            (Genome): A genome that is a combination of the two given genomes.
         """
         # Find the fitter parent
         if genome1.fitness >= genome2.fitness:
@@ -200,7 +200,7 @@ class Ecosystem:
         Returns the fittest genome of the current generation.
 
         Returns:
-            (Genome): The fittest genome of the current generation
+            (Genome): The fittest genome of the current generation.
         """
         genomes_by_fitness = sorted(self.get_population(), key=lambda g: g.fitness, reverse=True)
         return genomes_by_fitness[0]
@@ -210,11 +210,11 @@ class Ecosystem:
         Returns the the distance between two genomes, meaning a score for how different they are from eachother.
 
         Args:
-            genome1 (Genome): The first genome
-            genome2 (Genome): The second genome
+            genome1 (Genome): The first genome.
+            genome2 (Genome): The second genome.
 
         Returns:
-            (float): The distance between the two genomes
+            (float): The distance between the two genomes.
         """
         # Find the amount of disjoint and excess connections
         g1_inn_nums = [c.innovation_number for c in genome1.connections]
@@ -260,11 +260,11 @@ class Ecosystem:
         Returns the innovation number for a connection with the given input and output.
 
         Args:
-            in_node (int):  The id of the input node for the connection
-            out_node (int): The id of the output node for the connection
+            in_node (int):  The id of the input node for the connection.
+            out_node (int): The id of the output node for the connection.
 
         Returns:
-            (int): The innovation number of an existing, matching connection or a new one if no matching connection exists
+            (int): The innovation number of an existing, matching connection or a new one if no matching connection exists.
         """
         conn = (in_node, out_node)
         if conn in self.__connection_log:
@@ -279,7 +279,7 @@ class Ecosystem:
         Returns a list containing every genome in the population.
 
         Returns:
-            (list): Every genome in the population
+            (list): Every genome in the population.
         """
         population = []
         for s in self.species:
@@ -291,7 +291,7 @@ class Ecosystem:
         Removes the genome from the gene pool.
 
         Args:
-            genome (Genome): The genome to kill
+            genome (Genome): The genome to kill.
         """
         for species in self.species:
             if genome in species:
@@ -312,10 +312,10 @@ class Ecosystem:
         Will round down if inexact.
 
         Args:
-            percentage (float): The maximum percentage of genomes that will be killed in each species
+            percentage (float): The maximum percentage of genomes that will be killed in each species.
 
         Returns:
-            (int): The total amount of genomes that were killed
+            (int): The total amount of genomes that were killed.
         """
         total_killed = 0
         for species in self.species:
@@ -339,8 +339,8 @@ class Ecosystem:
         - Increments the generation number
 
         Args:
-            kill_percentage (float): The percentage of genomes to remove from the gene pool
-            mutate (bool):           Determines if the population should be mutated or not
+            kill_percentage (float): The percentage of genomes to remove from the gene pool.
+            mutate (bool):           Determines if the population should be mutated or not.
             parent_genome (Genome):  The optional parent of the next generation.
         """
         if parent_genome is None:
@@ -383,8 +383,8 @@ class Species(list):
     only if they are within the threshold.
 
     Attributes:
-        id (int):                The unique id for the species
-        representative (Genome): The first genome in the species
+        id (int):                The unique id for the species.
+        representative (Genome): The first genome in the species.
     """
 
     def __init__(self, id_num, representative):
@@ -392,9 +392,9 @@ class Species(list):
         Constructor.
 
         Args:
-            id_num (int):            The unique id for the species
-            representative (Genome): The first genome in the species
-            genomes (list):          The list of genomes that are a part of the species
+            id_num (int):            The unique id for the species.
+            representative (Genome): The first genome in the species.
+            genomes (list):          The list of genomes that are a part of the species.
         """
         super(Species, self).__init__([representative])
         self.id = id_num

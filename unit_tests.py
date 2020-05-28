@@ -3,9 +3,11 @@ from copy import copy
 import random
 import unittest
 
+import numpy as np
+
 import activations
 from ecosystem import Ecosystem, Species, EcosystemError
-from genome import Genome, Node, Connection, GenomeError
+from genome import Genome, Node, Connection
 
 
 class TestEcosystem(unittest.TestCase):
@@ -572,35 +574,16 @@ class TestEcosystem(unittest.TestCase):
         for g in e.get_population():
             g.fitness = random.randrange(0, 200)
 
-        e.next_generation()
+        for i in range(e.generation + 1, 5):
+            e.next_generation()
 
-        # Test to make sure the population size is the same from generation to generation
-        msg = 'Population size different for next generation!'
-        self.assertEqual(len(e.get_population()), 100, msg)
+            # Test to make sure the population size is the same from generation to generation
+            msg = 'Population size different for next generation!'
+            self.assertEqual(len(e.get_population()), 100, msg)
 
-        # Test to make sure the generation number is incremented
-        msg = 'Generation number not incremented!'
-        self.assertEqual(e.generation, 1, msg)
-
-        e.next_generation()
-
-        # Test to make sure the population size is the same from generation to generation
-        msg = 'Population size different for next generation!'
-        self.assertEqual(len(e.get_population()), 100, msg)
-
-        # Test to make sure the generation number is incremented
-        msg = 'Generation number not incremented!'
-        self.assertEqual(e.generation, 2, msg)
-
-        e.next_generation()
-
-        # Test to make sure the population size is the same from generation to generation
-        msg = 'Population size different for next generation!'
-        self.assertEqual(len(e.get_population()), 100, msg)
-
-        # Test to make sure the generation number is incremented
-        msg = 'Generation number not incremented!'
-        self.assertEqual(e.generation, 3, msg)
+            # Test to make sure the generation number is incremented
+            msg = 'Generation number not incremented!'
+            self.assertEqual(e.generation, i, msg)
 
 
 class TestSpecies(unittest.TestCase):
@@ -676,43 +659,9 @@ class TestGenome(unittest.TestCase):
         msg = 'Duplicate connection added!'
         try:
             g.add_connection(0, 2)
-        except GenomeError:
+        except AssertionError:
             pass
         self.assertEqual(len(g.connections), 10, msg)
-
-        # Make sure backwards connections aren't created
-        msg = 'Backward connection added!'
-        try:
-            g.add_connection(5, 4)
-        except GenomeError:
-            pass
-        self.assertEqual(len(g.connections), 10, msg)
-
-        # Make sure you can't connect inputs to inputs or outputs to outputs
-        msg = 'Input node connected to input node!'
-        in_to_in = False
-        try:
-            g.add_connection(0, 1)
-        except GenomeError:
-            in_to_in = True
-        self.assertTrue(in_to_in, msg)
-
-        msg = 'Output node connected to output node!'
-        out_to_out = False
-        try:
-            g.add_connection(2, 3)
-        except GenomeError:
-            out_to_out = True
-        self.assertTrue(out_to_out, msg)
-
-        # Make sure you can't connect a node to itself
-        msg = 'Node connected to itself!'
-        node_to_itself = False
-        try:
-            g.add_connection(6, 6)
-        except GenomeError:
-            node_to_itself = True
-        self.assertTrue(node_to_itself, msg)
 
     def test_add_node(self):
         g = Genome(1, 1)
@@ -729,7 +678,7 @@ class TestGenome(unittest.TestCase):
         self.assertTrue(g.connections[2].expressed, msg)
         self.assertEqual(g.connections[0].weight, g.connections[1].weight, msg)
         self.assertEqual(g.connections[2].weight, 1.0, msg)
-        self.assertEqual(g.get_nodes()[2].get_activation(), activations.modified_sigmoid, msg)
+        self.assertEqual(g.get_nodes()[2].activation, activations.modified_sigmoid, msg)
 
         g.add_node(1, activation=activations.absolute)
         self.assertEqual(len(g.get_nodes()), 4, msg)
@@ -739,7 +688,7 @@ class TestGenome(unittest.TestCase):
         self.assertTrue(g.connections[4].expressed, msg)
         self.assertEqual(g.connections[1].weight, g.connections[3].weight, msg)
         self.assertEqual(g.connections[4].weight, 1.0, msg)
-        self.assertEqual(g.get_nodes()[3].get_activation(), activations.absolute, msg)
+        self.assertEqual(g.get_nodes()[3].activation, activations.absolute, msg)
 
     def test_connections_at_max(self):
         g = Genome(2, 2)
@@ -791,36 +740,66 @@ class TestGenome(unittest.TestCase):
         self.assertNotEqual(len(g.connections), len(gc.connections), msg)
         self.assertNotEqual(g.connections[0].weight, gc.connections[0].weight, msg)
 
-    def test_evaluate(self):
+    def test_forward(self):
         error_margin = 0.000000000001
 
         g = Genome(2, 2)
+        x = np.array([0.5, 0.5])
 
-        msg = 'Invalid evaluation result!'
+        msg = 'Invalid genome output!'
 
         # No hidden nodes, modified sigmoid activation
         g.add_connection(0, 2, weight=-0.7)
         g.add_connection(0, 3, weight=-0.1)
         g.add_connection(1, 2, weight=0.5)
         g.add_connection(1, 3, weight=0.9)
-        results = g.evaluate([0.5, 0.5])
-        self.assertAlmostEqual(results[0], 0.3798935676569099, msg=msg, delta=error_margin)
-        self.assertAlmostEqual(results[1], 0.8765329524347759, msg=msg, delta=error_margin)
+        y = g(x)
+        self.assertAlmostEqual(y[0], 0.3798935676569099, msg=msg, delta=error_margin)
+        self.assertAlmostEqual(y[1], 0.8765329524347759, msg=msg, delta=error_margin)
 
         # Different activation
         for n in g.get_nodes():
-            n.set_activation(activations.absolute)
-        results = g.evaluate([0.5, 0.5])
-        self.assertAlmostEqual(results[0], 0.1, msg=msg, delta=error_margin)
-        self.assertAlmostEqual(results[1], 0.4, msg=msg, delta=error_margin)
+            if n.type != 'input':
+                g.set_activation(n.id, activations.absolute)
+        y = g(x)
+        self.assertAlmostEqual(y[0], 0.1, msg=msg, delta=error_margin)
+        self.assertAlmostEqual(y[1], 0.4, msg=msg, delta=error_margin)
 
         # With hidden nodes and different activations (sigmoid for the new ones)
         g.add_node(0, activation=activations.sigmoid)
         g.add_node(2, activation=activations.sigmoid)
         g.add_connection(4, 5, 0.5)
-        results = g.evaluate([0.5, 0.5])
-        self.assertAlmostEqual(results[0], 0.08953579350695234, msg=msg, delta=error_margin)
-        self.assertAlmostEqual(results[1], 0.4, msg=msg, delta=error_margin)
+        y = g(x)
+        self.assertAlmostEqual(y[0], 0.07680998020365337, msg=msg, delta=error_margin)
+        self.assertAlmostEqual(y[1], 0.4, msg=msg, delta=error_margin)
+
+        # With input to input and output to output connections
+        g.add_connection(0, 1, 0.9)
+        g.add_connection(3, 2, 0.8)
+        y = g(x)
+        self.assertAlmostEqual(y[0], 0.7110364118068048, msg=msg, delta=error_margin)
+        self.assertAlmostEqual(y[1], 0.8049999999999999, msg=msg, delta=error_margin)
+
+        # With self to self connections
+        g.add_connection(0, 0, 0.2)
+        g.add_connection(4, 4, 0.3)
+        g.add_connection(3, 3, 0.4)
+        y = g(x)
+        self.assertAlmostEqual(y[0], 0.7550252034216097, msg=msg, delta=error_margin)
+        self.assertAlmostEqual(y[1], 1.113, msg=msg, delta=error_margin)
+
+        # Test with many hidden nodes in a line
+        g2 = Genome(2, 2)
+        g2.add_connection(0, 2, -0.3)
+        g2.add_node(0)
+        g2.add_node(2)
+        g2.add_node(4)
+        g2.add_node(6)
+        g2.add_connection(1, 7, 0.7)
+        g2.add_connection(4, 3, -0.2)
+        y = g2(x)
+        self.assertAlmostEqual(y[0], 0.3240984722740593, msg=msg, delta=error_margin)
+        self.assertAlmostEqual(y[1], 0.3798935676569099, msg=msg, delta=error_margin)
 
     def test_get_node_inputs(self):
         g = Genome(2, 2)
@@ -846,42 +825,6 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(g.get_node_outputs(0), [2, 3], msg)
         self.assertEqual(g.get_node_outputs(1), [2], msg)
 
-    def test_get_node_max_distance(self):
-        g = Genome(2, 2)
-
-        # Test to make sure empty genomes return the correct values for output nodes
-        msg = 'Disconnected output node returned invalid value!'
-        self.assertEqual(g.get_node_max_distance(g.get_node(2).id), -1, msg)
-        self.assertEqual(g.get_node_max_distance(g.get_node(3).id), -1, msg)
-
-        # Add nodes and connections
-        g.add_connection(0, 2, weight=-0.7)
-        g.add_connection(0, 3, weight=-0.1)
-        g.add_connection(1, 2, weight=0.5)
-        g.add_connection(1, 3, weight=0.9)
-        g.add_node(0)
-        g.add_node(2)
-        g.add_connection(4, 5, 0.5)
-
-        msg = 'Incorrect node max distance!'
-
-        # Test the values of each node distance to make sure they are correct
-        correct_distances = [0, 0, 3, 1, 1, 2]
-        for i in range(len(g.get_nodes())):
-            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].id), correct_distances[i], msg)
-
-        # Add a node and test again
-        g.add_node(8)
-        correct_distances = [0, 0, 4, 1, 1, 3, 2]
-        for i in range(len(g.get_nodes())):
-            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].id), correct_distances[i], msg)
-
-        # Add connection and test again
-        g.add_connection(6, 3)
-        correct_distances = [0, 0, 4, 3, 1, 3, 2]
-        for i in range(len(g.get_nodes())):
-            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].id), correct_distances[i], msg)
-
     def test_mutate_add_connection(self):
         g = Genome(2, 2)
 
@@ -894,21 +837,17 @@ class TestGenome(unittest.TestCase):
         self.assertTrue(g.connections[0].out_node in [n.id for n in g.get_nodes()], msg)
         self.assertTrue(-1.0 <= g.connections[0].weight <= 1.0, msg)
         self.assertTrue(g.connections[0].expressed, msg)
-        self.assertNotEqual(g.connections[0].in_node, g.connections[0].out_node)
 
         # Test to make sure connections are always added (unless at max)
         msg = 'Connection not added!'
-        g.mutate_add_connection()
-        self.assertEqual(len(g.connections), 2, msg)
-        g.mutate_add_connection()
-        self.assertEqual(len(g.connections), 3, msg)
-        g.mutate_add_connection()
-        self.assertEqual(len(g.connections), 4, msg)
+        for i in range(2, 10):
+            g.mutate_add_connection()
+            self.assertEqual(len(g.connections), i, msg)
 
         # Test to make sure it doesn't go above the maximum connections
         msg = 'Connections exceeded maximum amount!'
         g.mutate_add_connection()
-        self.assertEqual(len(g.connections), 4, msg)  # Shouldn't go past 4
+        self.assertEqual(len(g.connections), 10, msg)  # Shouldn't go past 10
 
     def test_mutate_add_node(self):
         g = Genome(1, 1)
@@ -925,7 +864,6 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(len(g.get_nodes()), 3, msg)
         self.assertEqual(g.get_nodes()[2].id, 2, msg)
         self.assertEqual(g.get_nodes()[2].type, 'hidden', msg)
-        self.assertEqual(g.get_nodes()[2].value, 0.0, msg)
         self.assertEqual(len(g.connections), 3, msg)
         self.assertEqual(g.connections[0].weight, g.connections[1].weight, msg)
         self.assertEqual(g.connections[2].weight, 1.0, msg)
@@ -1006,32 +944,17 @@ class TestGenome(unittest.TestCase):
         g.set_nodes(nodes)
         self.assertEqual(g.get_nodes(), nodes, msg)
 
-    def test_sort_connections(self):
-        g = Genome(2, 2)
+    def test_set_activation(self):
+        g = Genome(3, 3)
+        node_ids = range(len(g.get_nodes()))
+        act = [activations.relu, activations.gaussian, activations.square]
 
-        # Create a fairly complex structure
-        g.add_connection(0, 2)
-        g.add_connection(0, 3)
-        g.add_connection(1, 2)
-        g.add_connection(1, 3)
-        g.add_node(3)
-        g.add_node(5)
-        g.add_node(6)
-        g.add_node(7)
-        g.add_connection(4, 7)
-        g.add_connection(1, 6)
-        g.add_connection(0, 6)
-        g.add_connection(7, 3)
-        g.add_node(0)
-        g.add_node(2)
-        g.add_connection(8, 7)
-        g.add_connection(4, 9)
-
-        # Test to make sure all of the connections are sorted in a feed-forward manner
-        msg = 'Connections are not feed-forward!'
-        g.sort_connections()
-        for i in range(len(g.connections)):
-            self.assertTrue(g.connections[i].in_node not in [c.out_node for c in g.connections[i:]], msg)
+        # Test to make sure the activation is set correctly
+        msg = 'Activation set incorrectly!'
+        for nid in node_ids:
+            for a in act:
+                g.set_activation(nid, a)
+                self.assertEqual(g.get_node(nid).activation, a)
 
 
 class TestNode(unittest.TestCase):
@@ -1041,31 +964,17 @@ class TestNode(unittest.TestCase):
         n = Node(0, 'input')
         self.assertEqual(n.id, 0, msg)
         self.assertEqual(n.type, 'input', msg)
-        self.assertIsNone(n.get_activation(), msg)
-        self.assertEqual(n.value, 0.0, msg)
+        self.assertEqual(n.activation, activations.linear, msg)
 
-        n2 = Node(1, 'output', activation=activations.sigmoid, value=5.4)
+        n2 = Node(1, 'output')
         self.assertEqual(n2.id, 1, msg)
         self.assertEqual(n2.type, 'output', msg)
-        self.assertEqual(n2.get_activation(), activations.sigmoid, msg)
-        self.assertEqual(n2.value, 5.4, msg)
+        self.assertEqual(n2.activation, activations.modified_sigmoid, msg)
 
-        n3 = Node(2, 'hidden', activation=activations.absolute, value=-0.3)
+        n3 = Node(2, 'hidden', activation=activations.absolute)
         self.assertEqual(n3.id, 2, msg)
         self.assertEqual(n3.type, 'hidden', msg)
-        self.assertEqual(n3.get_activation(), activations.absolute, msg)
-        self.assertEqual(n3.value, -0.3, msg)
-
-    def test_activate(self):
-        # Test to make sure the value is run through the activation function correctly
-        msg = 'Failed to set node activation correctly!'
-        n = Node(0, 'hidden', value=-0.8)
-        n.activate()
-        self.assertAlmostEqual(n.value, 0.01945508456819303, msg=msg, delta=0.000000000001)
-
-        n2 = Node(0, 'hidden', activation=activations.absolute, value=-1.0)
-        n2.activate()
-        self.assertEqual(n2.value, 1.0, msg)
+        self.assertEqual(n3.activation, activations.absolute, msg)
 
     def test_copy(self):
         n = Node(0, 'hidden')
@@ -1076,15 +985,12 @@ class TestNode(unittest.TestCase):
         self.assertEqual(n, nc, msg)
         self.assertEqual(n.id, nc.id, msg)
         self.assertEqual(n.type, nc.type, msg)
-        self.assertEqual(n.get_activation(), nc.get_activation(), msg)
-        self.assertEqual(n.value, nc.value, msg)
+        self.assertEqual(n.activation, nc.activation, msg)
 
         # Test to make sure the copy doesn't change if the original does
         msg = 'Copy changed when the original was changed!'
-        n.set_activation(activations.absolute)
-        n.value = 50
-        self.assertNotEqual(n.get_activation(), nc.get_activation(), msg)
-        self.assertNotEqual(n.value, nc.value, msg)
+        n.activation = activations.absolute
+        self.assertNotEqual(n.activation, nc.activation, msg)
 
     def test_get_innovation_number(self):
         g = Genome(10, 10)
@@ -1105,19 +1011,6 @@ class TestNode(unittest.TestCase):
             for j in range(10, 20):
                 self.assertEqual(g.get_innovation_number(i, j), inn_num, msg)
                 inn_num += 1
-
-    def test_set_activation(self):
-        # Test to make sure it returns the correct value
-        msg = 'Failed to set node activation correctly!'
-        n = Node(0, 'hidden')
-        n.set_activation(activations.absolute)
-        self.assertEqual(n.get_activation(), activations.absolute, msg)
-
-        # Test to make sure input nodes cannot have an activation
-        msg = 'Input nodes cannot have activation functions!'
-        n = Node(1, 'input')
-        n.set_activation(activations.absolute)
-        self.assertIsNone(n.get_activation(), msg)
 
 
 class TestConnection(unittest.TestCase):
