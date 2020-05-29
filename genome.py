@@ -91,7 +91,7 @@ class Genome:
 
         Args:
             x (ndarray): The input array.
-            tid (str):   The type id of connections involved ('ii', 'ih', 'hh', 'io', 'ho', or 'oo').
+            tid (str):   The type id of connections involved ('ih', 'hh', 'io', or 'ho').
             ntid (str):  The type id of the nodes being activated ('input', 'hidden' or 'output').
 
         Returns:
@@ -112,12 +112,10 @@ class Genome:
         - output: Output node activations
 
         Arrays in the weights dict:
-        - ii: Input to input weights
         - ih: Input to hidden weights
         - hh: Hidden to hidden weights
         - io: Input to output weights
         - ho: Hidden to output weights
-        - oo: Output to output weights
         """
         # Sort nodes by type
         input_nodes = []
@@ -138,12 +136,10 @@ class Genome:
         self.__fill_activations('output', output_nodes)
 
         # Fill in connection weights
-        self.__fill_weights('ii', input_nodes, input_nodes)
         self.__fill_weights('ih', input_nodes, hidden_nodes)
         self.__fill_weights('hh', hidden_nodes, hidden_nodes)
         self.__fill_weights('io', input_nodes, output_nodes)
         self.__fill_weights('ho', hidden_nodes, output_nodes)
-        self.__fill_weights('oo', output_nodes, output_nodes)
 
     def __fill_activations(self, tid, nodes):
         """
@@ -162,7 +158,7 @@ class Genome:
         Fills the weights for the given type with the connections between the given nodes.
 
         Args:
-            tid (str):        The type id of connection weights ('ii', 'ih', 'hh', 'io', 'ho', or 'oo').
+            tid (str):        The type id of connection weights ('ih', 'hh', 'io', or 'ho').
             in_nodes (list):  The list of input nodes.
             out_nodes (list): The list of output nodes.
         """
@@ -189,6 +185,10 @@ class Genome:
         # Get the types of the nodes
         node1_type = self.get_node(node1).type
         node2_type = self.get_node(node2).type
+
+        # Make sure the connection is valid
+        if node1_type != 'hidden':
+            assert node1_type != node2_type, f'Invalid connection! {node1_type} -> {node2_type}'
 
         # Check if the order of the nodes should be reversed
         reverse = (node1_type == 'hidden' and node2_type == 'input') or (node1_type == 'output' and node2_type == 'hidden') or (node1_type == 'output' and node2_type == 'input')
@@ -283,8 +283,6 @@ class Genome:
         """
         assert len(x) == self.shape[0], f'Invalid input size!  Amount required: {len(x)}  Amount given: {self.shape[0]}'
         x = x.copy()
-        x += x.dot(self.weights['ii'])
-        x = self.__activate(x, 'ii', 'input')
         h = x.dot(self.weights['ih'])
         h = self.__activate(h, 'ih', 'hidden')
         h += h.dot(self.weights['hh'])
@@ -293,8 +291,6 @@ class Genome:
         y = self.__activate(y, 'io', 'output')
         y += h.dot(self.weights['ho'])
         y = self.__activate(y, 'ho', 'output')
-        y += y.dot(self.weights['oo'])
-        y = self.__activate(y, 'oo', 'output')
         return y
 
     def get_connection(self, conn):
@@ -440,24 +436,19 @@ class Genome:
             connections.add((conn.in_node, conn.out_node))
 
         # Get node info
-        nodes = []
-        inputs = []
-        hidden = []
-        outputs = []
+        nodes = {'all': [], 'input': [], 'hidden': [], 'output': []}
         for node in self.__nodes:
-            nodes.append(node.id)
-            if node.type == 'input':
-                inputs.append(node.id)
-            elif node.type == 'hidden':
-                hidden.append(node.id)
-            else:
-                outputs.append(node.id)
+            nodes['all'].append(node.id)
+            nodes[node.type].append(node.id)
 
         # Find all possible connection choices
-        invalid_choices = list(itertools.product(outputs, inputs))
-        invalid_choices += list(itertools.product(hidden, inputs))
-        invalid_choices = set(invalid_choices).union(connections)
-        choices = set(itertools.product(nodes, nodes)).difference(invalid_choices)
+        invalid_choices = []
+        invalid_combos = [('output', 'input'), ('hidden', 'input'), ('input', 'input'), ('output', 'output')]
+        for in_type, out_type in invalid_combos:
+            invalid_choices += list(itertools.product(nodes[in_type], nodes[out_type]))
+        invalid_choices += list(zip(nodes['all'], nodes['all']))  # Exclude self to self
+        invalid_choices = set(invalid_choices).union(connections)  # Exclude current connections
+        choices = set(itertools.product(nodes['all'], nodes['all'])).difference(invalid_choices)
 
         # Pick a random connection and add it to the rest
         if len(choices) > 0:

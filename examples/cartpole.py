@@ -5,7 +5,7 @@ import numpy as np
 from ecosystem import Ecosystem
 
 
-POPULATION = 100
+POPULATION = 30
 GENERATIONS = 30
 
 # Set up environment

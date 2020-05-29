@@ -773,21 +773,6 @@ class TestGenome(unittest.TestCase):
         self.assertAlmostEqual(y[0], 0.07680998020365337, msg=msg, delta=error_margin)
         self.assertAlmostEqual(y[1], 0.4, msg=msg, delta=error_margin)
 
-        # With input to input and output to output connections
-        g.add_connection(0, 1, 0.9)
-        g.add_connection(3, 2, 0.8)
-        y = g(x)
-        self.assertAlmostEqual(y[0], 0.7110364118068048, msg=msg, delta=error_margin)
-        self.assertAlmostEqual(y[1], 0.8049999999999999, msg=msg, delta=error_margin)
-
-        # With self to self connections
-        g.add_connection(0, 0, 0.2)
-        g.add_connection(4, 4, 0.3)
-        g.add_connection(3, 3, 0.4)
-        y = g(x)
-        self.assertAlmostEqual(y[0], 0.7550252034216097, msg=msg, delta=error_margin)
-        self.assertAlmostEqual(y[1], 1.113, msg=msg, delta=error_margin)
-
         # Test with many hidden nodes in a line
         g2 = Genome(2, 2)
         g2.add_connection(0, 2, -0.3)
@@ -826,28 +811,34 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(g.get_node_outputs(1), [2], msg)
 
     def test_mutate_add_connection(self):
-        g = Genome(2, 2)
-
         # Test adding a connection
         msg = 'Connection added incorrectly!'
-        g.mutate_add_connection()
-        self.assertEqual(len(g.connections), 1, msg)
-        self.assertEqual(g.connections[0].innovation_number, 0, msg)
-        self.assertTrue(g.connections[0].in_node in [n.id for n in g.get_nodes()], msg)
-        self.assertTrue(g.connections[0].out_node in [n.id for n in g.get_nodes()], msg)
-        self.assertTrue(-1.0 <= g.connections[0].weight <= 1.0, msg)
-        self.assertTrue(g.connections[0].expressed, msg)
+        for i in range(30):
+            g = Genome(2, 2)
+            g.mutate_add_connection()
+            self.assertEqual(len(g.connections), 1, msg)
+            self.assertEqual(g.connections[0].innovation_number, 0, msg)
+            self.assertTrue(g.connections[0].in_node in [n.id for n in g.get_nodes()], msg)
+            self.assertTrue(g.connections[0].out_node in [n.id for n in g.get_nodes()], msg)
+            self.assertTrue(-1.0 <= g.connections[0].weight <= 1.0, msg)
+            self.assertTrue(g.connections[0].expressed, msg)
+            self.assertNotEqual(g.connections[0].in_node, g.connections[0].out_node)
+            in_type = g.get_node(g.connections[0].in_node).type
+            out_type = g.get_node(g.connections[0].out_node).type
+            self.assertFalse(in_type == out_type != 'hidden')
+            self.assertFalse((in_type == 'output' and out_type == 'input'))
+            self.assertFalse((in_type == 'hidden' and out_type == 'input'))
 
         # Test to make sure connections are always added (unless at max)
         msg = 'Connection not added!'
-        for i in range(2, 10):
+        for i in range(2, 4):
             g.mutate_add_connection()
             self.assertEqual(len(g.connections), i, msg)
 
         # Test to make sure it doesn't go above the maximum connections
         msg = 'Connections exceeded maximum amount!'
         g.mutate_add_connection()
-        self.assertEqual(len(g.connections), 10, msg)  # Shouldn't go past 10
+        self.assertEqual(len(g.connections), 4, msg)  # Shouldn't go past 4
 
     def test_mutate_add_node(self):
         g = Genome(1, 1)
