@@ -770,7 +770,7 @@ class TestGenome(unittest.TestCase):
         g.add_node(2, activation=activations.sigmoid)
         g.add_connection(4, 5, 0.5)
         y = g(x)
-        self.assertAlmostEqual(y[0], 0.07680998020365337, msg=msg, delta=error_margin)
+        self.assertAlmostEqual(y[0], 0.08953579350695234, msg=msg, delta=error_margin)
         self.assertAlmostEqual(y[1], 0.4, msg=msg, delta=error_margin)
 
         # Test with many hidden nodes in a line
@@ -783,8 +783,8 @@ class TestGenome(unittest.TestCase):
         g2.add_connection(1, 7, 0.7)
         g2.add_connection(4, 3, -0.2)
         y = g2(x)
-        self.assertAlmostEqual(y[0], 0.3240984722740593, msg=msg, delta=error_margin)
-        self.assertAlmostEqual(y[1], 0.3798935676569099, msg=msg, delta=error_margin)
+        self.assertAlmostEqual(y[0], 0.18866305913528142, msg=msg, delta=error_margin)
+        self.assertAlmostEqual(y[1], 0.2743863603871294, msg=msg, delta=error_margin)
 
     def test_get_node_inputs(self):
         g = Genome(2, 2)
@@ -797,6 +797,42 @@ class TestGenome(unittest.TestCase):
         msg = 'Node inputs are incorrect!'
         self.assertEqual(g.get_node_inputs(2), [0, 1], msg)
         self.assertEqual(g.get_node_inputs(3), [0], msg)
+
+    def test_get_node_max_distance(self):
+        g = Genome(2, 2)
+
+        # Test to make sure empty genomes return the correct values for output nodes
+        msg = 'Disconnected output node returned invalid value!'
+        self.assertEqual(g.get_node_max_distance(g.get_node(2).id), -1, msg)
+        self.assertEqual(g.get_node_max_distance(g.get_node(3).id), -1, msg)
+
+        # Add nodes and connections
+        g.add_connection(0, 2, weight=-0.7)
+        g.add_connection(0, 3, weight=-0.1)
+        g.add_connection(1, 2, weight=0.5)
+        g.add_connection(1, 3, weight=0.9)
+        g.add_node(0)
+        g.add_node(2)
+        g.add_connection(4, 5, 0.5)
+
+        msg = 'Incorrect node max distance!'
+
+        # Test the values of each node distance to make sure they are correct
+        correct_distances = [0, 0, 3, 1, 1, 2]
+        for i in range(len(g.get_nodes())):
+            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].id), correct_distances[i], msg)
+
+        # Add a node and test again
+        g.add_node(8)
+        correct_distances = [0, 0, 4, 1, 1, 3, 2]
+        for i in range(len(g.get_nodes())):
+            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].id), correct_distances[i], msg)
+
+        # Add connection and test again
+        g.add_connection(6, 3)
+        correct_distances = [0, 0, 4, 3, 1, 3, 2]
+        for i in range(len(g.get_nodes())):
+            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].id), correct_distances[i], msg)
 
     def test_get_node_outputs(self):
         g = Genome(2, 2)
@@ -813,6 +849,8 @@ class TestGenome(unittest.TestCase):
     def test_mutate_add_connection(self):
         # Test adding a connection
         msg = 'Connection added incorrectly!'
+        g = Genome(2, 2)
+
         for i in range(30):
             g = Genome(2, 2)
             g.mutate_add_connection()

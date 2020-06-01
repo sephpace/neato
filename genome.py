@@ -24,11 +24,11 @@ class Genome:
 
     Attributes:
         __nodes (list):        The list of nodes in the genome.
-        activations (dict):    The dictionary of activation functions for each node.
+        __order (list):        The order that nodes will be evaluated.
         connections (list):    The list of connections in the genome.
         ecosystem (Ecosystem): The ecosystem that this genome is a part of.
         shape (tuple):         The amount of input and output nodes.
-        weights (dict):        The dictionary of weights for each connection.
+        weights (ndarray):     The weights for each connection between each node.
     """
 
     def __init__(self, input_size, output_size, ecosystem=None):
@@ -44,10 +44,8 @@ class Genome:
         self.ecosystem = ecosystem
 
         self.__nodes = []
-        self.activations = {}
         self.connections = []
         self.fitness = 0
-        self.weights = {}
 
         # Add input and output nodes to their respective lists
         for i in range(input_size):
@@ -81,93 +79,23 @@ class Genome:
             genome_string += f'\t{str(c)}\n'
         return genome_string
 
-    def __activate(self, x, tid, ntid):
-        """
-        Puts each element in the given array into the activation function for its respective node.
-
-        Self activation requires special care to only activate certain nodes.  If activating the node on
-        the receiving end of a connection between the same type of nodes (input to input, hidden to hidden,
-        output to output), the appropriate string should be passed into the s_act parameter.
-
-        Args:
-            x (ndarray): The input array.
-            tid (str):   The type id of connections involved ('ih', 'hh', 'io', or 'ho').
-            ntid (str):  The type id of the nodes being activated ('input', 'hidden' or 'output').
-
-        Returns:
-            (ndarray): The output array that has been activated.
-        """
-        assert len(x) == len(self.activations[ntid]), f'Invalid input size!  Amount required: {len(x)}  Amount given: {len(self.activations[ntid])}'
-        for i in range(len(x)):
-            if self.weights[tid][:, i].any():
-                x[i] = self.activations[ntid][i](x[i])
-        return x
-
     def __compile(self):
         """
-        Compiles the weights of each connection and the activation functions of each node into dictionaries of ndarrays.
-
-        Arrays in the activations dict:
-        - hidden: Hidden node activations
-        - output: Output node activations
-
-        Arrays in the weights dict:
-        - ih: Input to hidden weights
-        - hh: Hidden to hidden weights
-        - io: Input to output weights
-        - ho: Hidden to output weights
+        Compiles the weights of each connection into an ndarray for faster evaluation in the forward pass.
         """
-        # Sort nodes by type
-        input_nodes = []
-        hidden_nodes = []
-        output_nodes = []
-        nodes = sorted(self.__nodes, key=lambda node: node.id)
-        for node in nodes:
-            if node.type == 'input':
-                input_nodes.append(node)
-            elif node.type == 'hidden':
-                hidden_nodes.append(node)
-            else:
-                output_nodes.append(node)
-
-        # Fill in node activations
-        self.__fill_activations('input', input_nodes)
-        self.__fill_activations('hidden', hidden_nodes)
-        self.__fill_activations('output', output_nodes)
-
-        # Fill in connection weights
-        self.__fill_weights('ih', input_nodes, hidden_nodes)
-        self.__fill_weights('hh', hidden_nodes, hidden_nodes)
-        self.__fill_weights('io', input_nodes, output_nodes)
-        self.__fill_weights('ho', hidden_nodes, output_nodes)
-
-    def __fill_activations(self, tid, nodes):
-        """
-        Fills the activations for the given type with the activation functions from the given nodes.
-
-        Args:
-            tid (str):    The type id of the activation ('input', 'hidden' or 'output').
-            nodes (list): The list of nodes.
-        """
-        self.activations[tid] = np.full(len(nodes), 0, dtype=np.object)
-        for i, node in enumerate(nodes):
-            self.activations[tid][i] = node.activation if node.activation is not None else activations.linear
-
-    def __fill_weights(self, tid, in_nodes, out_nodes):
-        """
-        Fills the weights for the given type with the connections between the given nodes.
-
-        Args:
-            tid (str):        The type id of connection weights ('ih', 'hh', 'io', or 'ho').
-            in_nodes (list):  The list of input nodes.
-            out_nodes (list): The list of output nodes.
-        """
-        self.weights[tid] = np.zeros((len(in_nodes), len(out_nodes)))
-        for i, n1 in enumerate(in_nodes):
-            for j, n2 in enumerate(out_nodes):
-                conn = self.get_connection_from_nodes(n1.id, n2.id)
+        self.__order = []
+        nodes = []
+        for node in self.__nodes:
+            if node.type != 'input':
+                nodes.append(node)
+        nodes.sort(key=lambda n: self.get_node_max_distance(n.id))
+        self.weights = np.zeros((len(nodes), len(self.__nodes)))
+        for i, out_node in enumerate(nodes):
+            self.__order.append(out_node.id)
+            for in_node in self.__nodes:
+                conn = self.get_connection_from_nodes(in_node.id, out_node.id)
                 if conn is not None and conn.expressed:
-                    self.weights[tid][i, j] = conn.weight
+                    self.weights[i, in_node.id] = conn.weight
 
     def add_connection(self, node1, node2, weight=None):
         """
@@ -282,15 +210,12 @@ class Genome:
             (ndarray): The outputs of the network.
         """
         assert len(x) == self.shape[0], f'Invalid input size!  Amount required: {len(x)}  Amount given: {self.shape[0]}'
-        x = x.copy()
-        h = x.dot(self.weights['ih'])
-        h = self.__activate(h, 'ih', 'hidden')
-        h += h.dot(self.weights['hh'])
-        h = self.__activate(h, 'hh', 'hidden')
-        y = x.dot(self.weights['io'])
-        y = self.__activate(y, 'io', 'output')
-        y += h.dot(self.weights['ho'])
-        y = self.__activate(y, 'ho', 'output')
+        y = np.pad(x, (0, len(self.__nodes) - len(x)))
+        for nid, w in zip(self.__order, self.weights):
+            node = self.get_node(nid)
+            y[nid] = node.activation(y[nid] + y.dot(w))
+        input_size, output_size = self.shape
+        y = y[input_size:input_size + output_size]
         return y
 
     def get_connection(self, conn):
@@ -407,6 +332,32 @@ class Genome:
             if c.out_node == node:
                 node_inputs.append(c.in_node)
         return node_inputs
+
+    def get_node_max_distance(self, node):
+        """
+        Returns the maximum distance of the given node from an input node.
+        Calculated recursively.
+
+        If node does not connect to an input node, -1 is returned
+
+        Args:
+            node (int): The id of the node to test the distance for
+
+        Returns:
+            (int): The maximum distance from an input node
+        """
+        if self.get_node(node).type == 'input':
+            return 0
+
+        node_inputs = self.get_node_inputs(node)
+        if len(node_inputs) == 0:
+            return -1
+
+        distances = []
+        for n in node_inputs:
+            distances.append(self.get_node_max_distance(n) + 1)
+
+        return max(distances)
 
     def get_node_outputs(self, node):
         """
