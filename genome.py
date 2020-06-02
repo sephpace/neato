@@ -331,7 +331,7 @@ class Genome:
                 node_inputs.append(c.in_node)
         return node_inputs
 
-    def get_node_max_distance(self, node):
+    def get_node_max_distance(self, node, visited=None):
         """
         Returns the maximum distance of the given node from an input node.
         Calculated recursively.
@@ -339,22 +339,33 @@ class Genome:
         If node does not connect to an input node, -1 is returned
 
         Args:
-            node (int): The id of the node to test the distance for
+            node (int):    The id of the node to test the distance for
+            visited (set): The set of visited nodes on the current recursion path.
 
         Returns:
             (int): The maximum distance from an input node
         """
+        # Input nodes have a distance of 0
         if self.get_node(node).type == 'input':
             return 0
 
+        # Only visit each node once to avoid recursion error
+        visited = set() if visited is None else visited.copy()
+        if node in visited:
+            return 0
+        visited.add(node)
+
+        # Get node inputs
         node_inputs = self.get_node_inputs(node)
         if len(node_inputs) == 0:
             return -1
 
+        # Find distances of all inputs
         distances = []
         for n in node_inputs:
-            distances.append(self.get_node_max_distance(n) + 1)
+            distances.append(self.get_node_max_distance(n, visited=visited) + 1)
 
+        # Return max distance
         return max(distances)
 
     def get_node_outputs(self, node):

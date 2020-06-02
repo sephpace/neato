@@ -786,6 +786,18 @@ class TestGenome(unittest.TestCase):
         self.assertAlmostEqual(y[0], 0.18866305913528142, msg=msg, delta=error_margin)
         self.assertAlmostEqual(y[1], 0.2743863603871294, msg=msg, delta=error_margin)
 
+        # Test with recursive loop
+        g3 = Genome(1, 1)
+        x = np.array([0.5])
+        g3.add_connection(0, 1, 0.5)
+        g3.add_node(0)
+        g3.add_node(0)
+        g3.add_node(1)
+        g3.add_connection(3, 2, 0.5)
+        g3.add_connection(4, 3, 0.5)
+        y = g3(x)
+        self.assertAlmostEqual(y[0], 0.9907948306148218, msg=msg, delta=error_margin)
+
     def test_get_node_inputs(self):
         g = Genome(2, 2)
 
@@ -819,20 +831,34 @@ class TestGenome(unittest.TestCase):
 
         # Test the values of each node distance to make sure they are correct
         correct_distances = [0, 0, 3, 1, 1, 2]
-        for i in range(len(g.get_nodes())):
-            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].id), correct_distances[i], msg)
+        for node, distance in zip(g.get_nodes(), correct_distances):
+            self.assertEqual(g.get_node_max_distance(node.id), distance, msg)
 
         # Add a node and test again
         g.add_node(8)
         correct_distances = [0, 0, 4, 1, 1, 3, 2]
-        for i in range(len(g.get_nodes())):
-            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].id), correct_distances[i], msg)
+        for node, distance in zip(g.get_nodes(), correct_distances):
+            self.assertEqual(g.get_node_max_distance(node.id), distance, msg)
 
         # Add connection and test again
         g.add_connection(6, 3)
         correct_distances = [0, 0, 4, 3, 1, 3, 2]
-        for i in range(len(g.get_nodes())):
-            self.assertEqual(g.get_node_max_distance(g.get_nodes()[i].id), correct_distances[i], msg)
+        for node, distance in zip(g.get_nodes(), correct_distances):
+            self.assertEqual(g.get_node_max_distance(node.id), distance, msg)
+
+        # Test genome with connection loop
+        msg = 'Genome failed to handle connection loop!'
+
+        g2 = Genome(1, 1)
+        g2.add_connection(0, 1)
+        g2.add_node(0)
+        g2.add_node(0)
+        g2.add_node(1)
+        g2.add_connection(3, 2)
+        g2.add_connection(4, 3)
+        correct_distances = [0, 4, 3, 3, 3]
+        for node, distance in zip(g2.get_nodes(), correct_distances):
+            self.assertEqual(g2.get_node_max_distance(node.id), distance, msg)
 
     def test_get_node_outputs(self):
         g = Genome(2, 2)
