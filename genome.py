@@ -23,9 +23,9 @@ class Genome:
     toggle connection expression.
 
     Attributes:
+        __connections (list):    The list of connections in the genome.
         __nodes (list):        The list of nodes in the genome.
         __order (list):        The order that nodes will be evaluated.
-        connections (list):    The list of connections in the genome.
         ecosystem (Ecosystem): The ecosystem that this genome is a part of.
         shape (tuple):         The amount of input and output nodes.
         weights (ndarray):     The weights for each connection between each node.
@@ -44,7 +44,7 @@ class Genome:
         self.ecosystem = ecosystem
 
         self.__nodes = []
-        self.connections = []
+        self.__connections = []
         self.fitness = 0
 
         # Add input and output nodes to their respective lists
@@ -60,7 +60,7 @@ class Genome:
     def __call__(self, x): return self.forward(x)
 
     def __eq__(self, genome):
-        return self.__nodes == genome.get_nodes() and self.connections == genome.connections
+        return self.__nodes == genome.get_nodes() and self.__connections == genome.get_connections()
 
     def __str__(self):
         """
@@ -70,7 +70,7 @@ class Genome:
             str: The genome's connection data.
         """
         sorted_nodes = sorted(self.__nodes, key=lambda node: node.id)
-        sorted_connections = sorted(self.connections, key=lambda conn: conn.innovation_number)
+        sorted_connections = sorted(self.__connections, key=lambda conn: conn.innovation_number)
         genome_string = '\nNodes:\n'
         for n in sorted_nodes:
             genome_string += f'\t{str(n)}\n'
@@ -107,7 +107,7 @@ class Genome:
             weight (float): The weight of the connection.
         """
         # Make sure the connection does not already exist within the genome
-        for c in self.connections:
+        for c in self.__connections:
             assert not (c.in_node == node1 and c.out_node == node2), 'Connection already exists within genome!'
 
         # Get the types of the nodes
@@ -130,7 +130,7 @@ class Genome:
             conn = Connection(inn_num, node1, node2, weight=weight)
 
         # Add the connection to the genome and compile weights
-        self.connections.append(conn)
+        self.__connections.append(conn)
         self.__compile()
 
     def add_node(self, innovation_number, activation=activations.modified_sigmoid):
@@ -154,9 +154,9 @@ class Genome:
 
         # Create new connections to add in place of the disabled connection
         conn_id_1 = self.get_innovation_number(node_id, conn.out_node)
-        self.connections.append(Connection(conn_id_1, node_id, conn.out_node, weight=conn.weight))
+        self.__connections.append(Connection(conn_id_1, node_id, conn.out_node, weight=conn.weight))
         conn_id_2 = self.get_innovation_number(conn.in_node, node_id)
-        self.connections.append(Connection(conn_id_2, conn.in_node, node_id, weight=1.0))
+        self.__connections.append(Connection(conn_id_2, conn.in_node, node_id, weight=1.0))
 
         # Compile weights
         self.__compile()
@@ -174,9 +174,9 @@ class Genome:
         hidden_amt = len(self.__nodes) - input_size - output_size
 
         if hidden_amt == 0:
-            at_max = len(self.connections) == input_amt * output_amt
+            at_max = len(self.__connections) == input_amt * output_amt
         else:
-            at_max = len(self.connections) == (input_amt * output_amt) + (input_amt * hidden_amt) + (hidden_amt * output_amt) + (hidden_amt - 1)
+            at_max = len(self.__connections) == (input_amt * output_amt) + (input_amt * hidden_amt) + (hidden_amt * output_amt) + (hidden_amt - 1)
         return at_max
 
     def copy(self):
@@ -188,14 +188,10 @@ class Genome:
         """
         input_size, output_size = self.shape
         genome_copy = Genome(input_size, output_size, self.ecosystem)
-        node_copies = []
-        conn_copies = []
-        for node in self.__nodes:
-            node_copies.append(node.copy())
-        for conn in self.connections:
-            conn_copies.append(conn.copy())
+        node_copies = [n.copy() for n in self.__nodes]
+        conn_copies = [c.copy() for c in self.__connections]
         genome_copy.set_nodes(node_copies)
-        genome_copy.connections = conn_copies
+        genome_copy.set_connections(conn_copies)
         genome_copy.weights = self.weights
         return genome_copy
 
@@ -228,9 +224,11 @@ class Genome:
         Returns:
             (Connection): The connection with the given innovation number/input-output nodes or None if it doesn't exist.
         """
-        for connection in self.connections:
+        for connection in self.__connections:
             if connection == conn:
                 return connection
+
+    def get_connections(self): return self.__connections
 
     def get_connection_from_nodes(self, in_node, out_node):
         """
@@ -243,7 +241,7 @@ class Genome:
         Returns:
             (Connection): The connection with the given in_node and out_node.
         """
-        for connection in self.connections:
+        for connection in self.__connections:
             if connection.in_node == in_node and connection.out_node == out_node:
                 return connection
 
@@ -255,31 +253,31 @@ class Genome:
             (tuple): The input and output node id's for an available connection, contained in a tuple.
             (None):  None if no input is available.
         """
-        if not self.connections_at_max():
+        if not self.__connections_at_max():
             input_nodes = [n.id for n in self.__nodes if n.type == 'input']
             output_nodes = [n.id for n in self.__nodes if n.type == 'output']
             hidden_nodes = [n.id for n in self.__nodes if n.type == 'hidden']
 
             for i in input_nodes:
                 for o in output_nodes:
-                    if (i, o) not in self.connections:
+                    if (i, o) not in self.__connections:
                         return i, o
 
             for h in hidden_nodes:
                 for o in output_nodes:
-                    if (h, o) not in self.connections:
+                    if (h, o) not in self.__connections:
                         return h, o
 
             for i in input_nodes:
                 for h in hidden_nodes:
-                    if (i, h) not in self.connections:
+                    if (i, h) not in self.__connections:
                         return i, h
 
             for h1 in hidden_nodes:
                 for h2 in hidden_nodes:
                     if h1 == h2:
                         continue
-                    elif (h1, h2) not in self.connections:
+                    elif (h1, h2) not in self.__connections:
                         return h1, h2
         return None, None
 
@@ -298,10 +296,10 @@ class Genome:
             return self.ecosystem.get_innovation_number(in_node, out_node)
         else:
             conn = (in_node, out_node)
-            if conn in self.connections:
+            if conn in self.__connections:
                 return self.get_connection(conn).innovation_number
             else:
-                return len(self.connections)
+                return len(self.__connections)
 
     def get_node(self, node_id):
         """
@@ -328,7 +326,7 @@ class Genome:
             (list): A list of id's for every node that is connected to the given node as an input.
         """
         node_inputs = []
-        for c in self.connections:
+        for c in self.__connections:
             if c.out_node == node:
                 node_inputs.append(c.in_node)
         return node_inputs
@@ -370,7 +368,7 @@ class Genome:
             (list): A list of id's for every node that is connected to the given node as an output.
         """
         node_outputs = []
-        for c in self.connections:
+        for c in self.__connections:
             if c.in_node == node:
                 node_outputs.append(c.out_node)
         return node_outputs
@@ -383,7 +381,7 @@ class Genome:
         """
         # Get current connections
         connections = set()
-        for conn in self.connections:
+        for conn in self.__connections:
             connections.add((conn.in_node, conn.out_node))
 
         # Get node info
@@ -408,13 +406,13 @@ class Genome:
 
     def mutate_add_node(self):
         """
-        Randomly adds a hidden node onto an existing connection.
+        Randomly adds a hidden node onto an existing connection. If no connection is present, no node will be added.
 
         The existing connection is disabled and two new connections are added in its place.
         """
-        if len(self.connections) > 0:
+        if len(self.__connections) > 0:
             # Select a random expressed connection and disable it
-            expressed_connections = [c for c in self.connections if c.expressed]
+            expressed_connections = [c for c in self.__connections if c.expressed]
             if len(expressed_connections) == 0:
                 return
             rand_conn = random.choice(expressed_connections)
@@ -453,21 +451,21 @@ class Genome:
         """
         Randomly selects a connection and sets its weight to a random value.
         """
-        if len(self.connections) > 0:
-            rand_conn = random.choice(self.connections)
+        if len(self.__connections) > 0:
+            rand_conn = random.choice(self.__connections)
             rand_conn.set_random_weight()
 
     def mutate_shift_weight(self, step=0.1):
         """
         Randomly selects a connection and shifts its weight up or down a small step.
         """
-        if len(self.connections) > 0:
+        if len(self.__connections) > 0:
             # Randomly select whether it increases or decreases by the step
             random_sign = 1 if math.cos(random.random() * math.pi) > 0 else -1
             step *= random_sign
 
             # Select a random connection and shift its weight
-            rand_conn = random.choice(self.connections)
+            rand_conn = random.choice(self.__connections)
             rand_conn.weight = rand_conn.weight + step
 
     def mutate_toggle_connection(self):
@@ -476,9 +474,9 @@ class Genome:
 
         If it's enabled, it will become disabled and vice versa.
         """
-        if len(self.connections) > 0:
+        if len(self.__connections) > 0:
             # Select a random connection and toggle it
-            rand_conn = random.choice(self.connections)
+            rand_conn = random.choice(self.__connections)
             rand_conn.toggle()
 
     def save(self, path):
@@ -503,7 +501,10 @@ class Genome:
         node = self.get_node(node_id)
         if node is not None:
             node.activation = activation
-            self.__compile()
+
+    def set_connections(self, connections):
+        self.__connections = connections
+        self.__compile()
 
     def set_nodes(self, nodes):
         self.__nodes = nodes

@@ -167,31 +167,42 @@ class Ecosystem:
         # Combine the genomes
         child_connections = []
 
-        g1_inn_nums = [c.innovation_number for c in genome1.connections]
-        g2_inn_nums = [c.innovation_number for c in genome2.connections]
+        g1_inn_nums = [c.innovation_number for c in genome1.get_connections()]
+        g2_inn_nums = [c.innovation_number for c in genome2.get_connections()]
         all_inn_nums = set(g1_inn_nums + g2_inn_nums)
 
         for inn_num in all_inn_nums:
-            # --- Matching gene for both parents ---
-            if inn_num in more_fit_parent.connections and inn_num in less_fit_parent.connections:
-                rand_choice = random.randint(0, 1)
-                if rand_choice == 0:
-                    child_connections.append(more_fit_parent.get_connection(inn_num))
-                else:
-                    child_connections.append(less_fit_parent.get_connection(inn_num))
-
-            # --- Disjoint or excess gene for fit parent ---
-            elif inn_num in more_fit_parent.connections and inn_num not in less_fit_parent.connections:
+            # Note: Genes that are in less fit parent and not in more fit parent are intentionally skipped
+            if inn_num in more_fit_parent.get_connections() and inn_num in less_fit_parent.get_connections():
+                # Matching gene for both parents
+                parent_choice = random.choice((more_fit_parent, less_fit_parent))
+                child_connections.append(parent_choice.get_connection(inn_num))
+            elif inn_num in more_fit_parent.get_connections() and inn_num not in less_fit_parent.get_connections():
+                # Disjoint or excess gene for fit parent
                 conn = more_fit_parent.get_connection(inn_num)
                 child_connections.append(conn)
 
         # Sort the connections
         child_connections.sort(key=lambda c: c.innovation_number)
 
+        # Get hidden nodes that are used in connections
+        conn_hidden_nids = set()
+        for conn in child_connections:
+            conn_hidden_nids.add(conn.in_node)
+            conn_hidden_nids.add(conn.out_node)
+
+        # Copy over fitter parent nodes
+        child_nodes = []
+        for node in more_fit_parent.get_nodes():
+            # Unused hidden nodes are excluded
+            if node.type == 'hidden' and node.id not in conn_hidden_nids:
+                continue
+            child_nodes.append(node)
+
         # Create the child
         child = Genome(0, 0, ecosystem=self)
-        child.set_nodes(more_fit_parent.get_nodes())
-        child.connections = child_connections
+        child.set_nodes(child_nodes)
+        child.set_connections(child_connections)
 
         return child
 
@@ -217,8 +228,8 @@ class Ecosystem:
             (float): The distance between the two genomes.
         """
         # Find the amount of disjoint and excess connections
-        g1_inn_nums = [c.innovation_number for c in genome1.connections]
-        g2_inn_nums = [c.innovation_number for c in genome2.connections]
+        g1_inn_nums = [c.innovation_number for c in genome1.get_connections()]
+        g2_inn_nums = [c.innovation_number for c in genome2.get_connections()]
         g1_max_inn_num = max(g1_inn_nums) if len(g1_inn_nums) > 0 else 0
         g2_max_inn_num = max(g2_inn_nums) if len(g2_inn_nums) > 0 else 0
         all_inn_nums = set(g1_inn_nums + g2_inn_nums)
@@ -229,15 +240,15 @@ class Ecosystem:
         weight_difference_sum = 0.0
 
         for inn_num in all_inn_nums:
-            if inn_num in genome1.connections and inn_num in genome2.connections:
+            if inn_num in genome1.get_connections() and inn_num in genome2.get_connections():
                 matching_count += 1
                 weight_difference_sum += abs(genome1.get_connection(inn_num).weight - genome2.get_connection(inn_num).weight)
-            elif inn_num in genome1.connections and inn_num not in genome2.connections:
+            elif inn_num in genome1.get_connections() and inn_num not in genome2.get_connections():
                 if inn_num < g2_max_inn_num:
                     disjoint_count += 1
                 elif inn_num > g2_max_inn_num:
                     excess_count += 1
-            elif inn_num not in genome1.connections and inn_num in genome2.connections:
+            elif inn_num not in genome1.get_connections() and inn_num in genome2.get_connections():
                 if inn_num < g1_max_inn_num:
                     disjoint_count += 1
                 elif inn_num > g1_max_inn_num:
@@ -247,7 +258,7 @@ class Ecosystem:
         average_weight = weight_difference_sum / matching_count if matching_count > 0 else 0.0
 
         # Find the max connections
-        max_connections = max(len(genome1.connections), len(genome2.connections))
+        max_connections = max(len(genome1.get_connections()), len(genome2.get_connections()))
 
         # Find and return the distance
         distance = (disjoint_count * self.disjoint_coefficient / max_connections) if max_connections > 0 else 0.0

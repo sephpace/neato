@@ -19,11 +19,11 @@ ecosystem.create_initial_population(POPULATION, input_size=4, output_size=2)
 for generation in range(GENERATIONS):
     genomes = ecosystem.get_population()
     for i, genome in enumerate(genomes):
-        observation = env.reset()
+        observation = np.array(env.reset())
         done = False
         while not done:
             env.render()
-            action = np.array(genome(observation)).argmax()
+            action = genome(observation).argmax()
             observation, reward, done, info = env.step(action)
             genome.fitness += reward
             print(f'{ecosystem}  Genome: {i + 1}  Fitness: {genome.fitness}', end='\r')
