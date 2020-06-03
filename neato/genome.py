@@ -6,7 +6,7 @@ import pickle
 
 import numpy as np
 
-import activations
+from . import activations
 
 
 class Genome:

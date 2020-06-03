@@ -3,8 +3,8 @@ import copy
 import random
 import unittest
 
-from ecosystem import Ecosystem, Species
-from genome import Genome
+from neato.ecosystem import Ecosystem, Species
+from neato.genome import Genome
 
 
 class TestEcosystem(unittest.TestCase):

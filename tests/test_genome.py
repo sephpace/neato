@@ -3,8 +3,8 @@ import unittest
 
 import numpy as np
 
-import activations
-from genome import Genome, Node, Connection
+from neato import activations
+from neato.genome import Genome, Node, Connection
 
 
 class TestGenome(unittest.TestCase):

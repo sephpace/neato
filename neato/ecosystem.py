@@ -1,7 +1,7 @@
 
 import random
 
-from genome import Genome
+from .genome import Genome
 
 
 class Ecosystem:

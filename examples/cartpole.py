@@ -1,7 +1,7 @@
 
 import gym
 
-from ecosystem import Ecosystem
+from neato import Ecosystem
 
 
 POPULATION = 100

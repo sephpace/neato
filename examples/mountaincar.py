@@ -1,8 +1,8 @@
 
 import gym
 
-from ecosystem import Ecosystem
-from genome import Genome
+from neato import Ecosystem
+from neato import Genome
 
 
 POPULATION = 100
