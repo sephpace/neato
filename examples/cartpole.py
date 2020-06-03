@@ -6,7 +6,7 @@ from ecosystem import Ecosystem
 
 
 POPULATION = 100
-GENERATIONS = 100
+GENERATIONS = 10
 
 
 def evaluate_genome(genome, env, render=False):
@@ -35,7 +35,7 @@ def evaluate_genome(genome, env, render=False):
 
 if __name__ == '__main__':
     # Set up environment
-    env = gym.make('CartPole-v0')
+    env = gym.make('CartPole-v1')
 
     # Set up ecosystem
     ecosystem = Ecosystem()
