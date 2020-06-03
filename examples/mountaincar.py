@@ -2,6 +2,7 @@
 import gym
 
 from ecosystem import Ecosystem
+from genome import Genome
 
 
 POPULATION = 100
@@ -33,11 +34,12 @@ def evaluate_genome(genome, env, render=False):
 
 if __name__ == '__main__':
     # Set up environment
-    env = gym.make('CartPole-v1')
+    env = gym.make('MountainCar-v0')
 
     # Set up ecosystem
     ecosystem = Ecosystem()
-    ecosystem.create_initial_population(POPULATION, input_size=4, output_size=2)
+    genome = Genome(2, 3)
+    ecosystem.create_initial_population(POPULATION, parent_genome=genome)
 
     # Start the evolution
     for generation in range(GENERATIONS):
