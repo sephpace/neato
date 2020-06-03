@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 
 import activations
-from ecosystem import Ecosystem, Species, EcosystemError
+from ecosystem import Ecosystem, Species
 from genome import Genome, Node, Connection
 
 
@@ -62,7 +62,7 @@ class TestEcosystem(unittest.TestCase):
     def test_adjust_fitness(self):
         msg = 'Adjusted fitness incorrectly!'
 
-        e = Ecosystem(threshold=0.5, disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
+        e = Ecosystem(threshold=0.5, dc=1.0, ec=1.0, wc=0.4)
 
         # Create genomes
         g = Genome(2, 2)
@@ -124,7 +124,7 @@ class TestEcosystem(unittest.TestCase):
     def test_adjust_population_fitness(self):
         msg = 'Adjusted fitness incorrectly!'
 
-        e = Ecosystem(threshold=0.5, disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
+        e = Ecosystem(threshold=0.5, dc=1.0, ec=1.0, wc=0.4)
 
         # Create genomes
         g = Genome(2, 2)
@@ -184,28 +184,15 @@ class TestEcosystem(unittest.TestCase):
         population_size = 20
 
         # Test to make sure it catches invalid parameters
-        msg = 'Invalid parameters!'
-
-        no_parent = False
-        try:
+        msg = 'Invalid parameters not caught!'
+        with self.assertRaises(AssertionError, msg=msg):
             e.create_initial_population(population_size)
-        except EcosystemError:
-            no_parent = True
-        self.assertTrue(no_parent, msg)
 
-        no_input = False
-        try:
+        with self.assertRaises(AssertionError, msg=msg):
             e.create_initial_population(population_size, output_size=3)
-        except EcosystemError:
-            no_input = True
-        self.assertTrue(no_input, msg)
 
-        no_output = False
-        try:
+        with self.assertRaises(AssertionError, msg=msg):
             e.create_initial_population(population_size, input_size=3)
-        except EcosystemError:
-            no_output = True
-        self.assertTrue(no_output, msg)
 
         # Test to make sure an inital population is created with input and output sizes
         msg = 'Failed to create initial population correctly!'
@@ -387,7 +374,7 @@ class TestEcosystem(unittest.TestCase):
     def test_get_distance(self):
         error_margin = 0.000000000001
 
-        e = Ecosystem(disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
+        e = Ecosystem(dc=1.0, ec=1.0, wc=0.4)
 
         # Create genomes
         g = Genome(2, 2, ecosystem=e)
@@ -468,7 +455,7 @@ class TestEcosystem(unittest.TestCase):
         self.assertEqual(len(e.species), 0, msg)
 
     def test_kill_percentage(self):
-        e = Ecosystem(disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4)
+        e = Ecosystem(dc=1.0, ec=1.0, wc=0.4)
 
         # Create genomes
         g = Genome(2, 2, ecosystem=e)

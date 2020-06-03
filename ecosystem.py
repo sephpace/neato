@@ -13,36 +13,36 @@ class Ecosystem:
     is completed.  The other half has an opportunity to breed and create new genomes and possibly new species.
 
     Attributes:
-        __connection_log (dict):      A dictionary of existing connections within the ecosystem used to assign unique
-                                          innovation numbers.
-        disjoint_coefficient (float): A coefficient that adjusts the importance of disjoint connections when determining
-                                          genome distance.
-        excess_coefficient (float):   A coefficient that adjusts the importance of excess connections when determining
-                                          genome distance.
-        generation (int):             The current generation number.
-        species (list):               A list of species present in the ecosystem.
-        threshold (float):            The threshold of closeness for two genomes to be considered part of the same species.
-        weight_coefficient (float):   A coefficient that adjusts the importance of the average weight for connections when
-                                          determining genome distance.
+        __connection_log (dict): A dictionary of existing connections within the ecosystem used to assign unique
+                                     innovation numbers.
+        dc (float):              The disjoint coefficient: adjusts the importance of disjoint connections when determining
+                                     genome distance.
+        ec (float):              The excess coefficient: adjusts the importance of excess connections when determining 
+                                     genome distance.
+        generation (int):        The current generation number.
+        species (list):          A list of species present in the ecosystem.
+        threshold (float):       The threshold of closeness for two genomes to be considered part of the same species.
+        wc (float):              The weight coefficient: adjusts the importance of the average weight for connections when
+                                     determining genome distance.
     """
 
-    def __init__(self, threshold=0.5, disjoint_coefficient=1.0, excess_coefficient=1.0, weight_coefficient=0.4):
+    def __init__(self, threshold=0.5, dc=1.0, ec=1.0, wc=0.4):
         """
         Constructor.
 
         Args:
-            threshold (float):            The threshold of closeness for two genomes to be considered part of the same species.
-            disjoint_coefficient (float): A coefficient that adjusts the importance of disjoint connections when determining
-                                              genome distance.
-            excess_coefficient (float):   A coefficient that adjusts the importance of excess connections when determining
-                                              genome distance.
-            weight_coefficient (float):   A coefficient that adjusts the importance of the average weight for connections when
-                                              determining genome distance.
+            threshold (float): The threshold of closeness for two genomes to be considered part of the same species.
+            dc (float):        The disjoint coefficient: adjusts the importance of disjoint connections when determining
+                                   genome distance.
+            ec (float):        The excess coefficient: adjusts the importance of excess connections when determining
+                                   genome distance.
+            wc (float):        The weight coefficient: adjusts the importance of the average weight for connections when
+                                   determining genome distance.
         """
         self.threshold = threshold
-        self.disjoint_coefficient = disjoint_coefficient
-        self.excess_coefficient = excess_coefficient
-        self.weight_coefficient = weight_coefficient
+        self.dc = dc
+        self.ec = ec
+        self.wc = wc
 
         self.__connection_log = {}
         self.species = []
@@ -119,19 +119,14 @@ class Ecosystem:
             output_size (int):      The amount of output nodes for each genome in the population.
             mutate (bool):          If True, each newly created genome will be given a random mutation.
         """
-        # Determine how to create genomes
+        # Filter arguments
+        assert parent_genome is not None or input_size is not None and output_size is not None, 'No parent genome or input and output sizes specified!'
         if parent_genome is not None:
             from_parent = True
-        elif input_size is not None and output_size is not None:
-            from_parent = False
-        elif input_size is None and output_size is None:
-            raise EcosystemError('No input and output length or parent genome specified!')
-        elif input_size is not None and output_size is None:
-            raise EcosystemError('No output length specified!')
-        elif input_size is None and output_size is not None:
-            raise EcosystemError('No input length specified!')
         else:
-            raise EcosystemError('A problem occurred while creating initial population!')
+            assert input_size is not None, 'No input size specified!'
+            assert output_size is not None, 'No output size specified!'
+            from_parent = False
 
         # Create the initial population
         self.species.clear()
@@ -261,9 +256,9 @@ class Ecosystem:
         max_connections = max(len(genome1.get_connections()), len(genome2.get_connections()))
 
         # Find and return the distance
-        distance = (disjoint_count * self.disjoint_coefficient / max_connections) if max_connections > 0 else 0.0
-        distance += (excess_count * self.excess_coefficient / max_connections) if max_connections > 0 else 0.0
-        distance += (average_weight * self.weight_coefficient)
+        distance = (disjoint_count * self.dc / max_connections) if max_connections > 0 else 0.0
+        distance += (excess_count * self.ec / max_connections) if max_connections > 0 else 0.0
+        distance += (average_weight * self.wc)
         return distance
 
     def get_innovation_number(self, in_node, out_node):
@@ -412,8 +407,3 @@ class Species(list):
         self.representative = representative
 
     def __str__(self): return f'Species: {self.id}, Genomes: {len(self)}'
-
-
-class EcosystemError(Exception):
-    def __init__(self, message):
-        self.message = message
