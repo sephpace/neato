@@ -21,7 +21,7 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(len(g.get_connections()), 0)
         self.assertEqual(g.fitness, 0)
 
-    def test__add_connection(self):
+    def test_add_connection(self):
         g = Genome(2, 2)
 
         # Test connecting input and output nodes
@@ -63,13 +63,26 @@ class TestGenome(unittest.TestCase):
         self.assertEqual(g.get_connections()[9].out_node, 5, msg)
         self.assertEqual(g.get_connections()[9].weight, 0.9, msg)
 
-        # Make sure duplicate connections aren't created
-        msg = 'Duplicate connection added!'
-        try:
-            g.add_connection(0, 2)
-        except AssertionError:
-            pass
-        self.assertEqual(len(g.get_connections()), 10, msg)
+        # Test to make sure it catches invalid parameters
+        msg = 'Invalid parameters not caught!'
+
+        # Nodes that don't exist
+        invalid_nodes = range(10, 15)
+        for n1 in invalid_nodes:
+            for n2 in invalid_nodes:
+                with self.assertRaises(AssertionError, msg=msg):
+                    g.add_connection(n1, n2)
+
+        # Duplicate connections
+        for conn in g.get_connections():
+            with self.assertRaises(AssertionError, msg=msg):
+                g.add_connection(conn.in_node, conn.out_node)
+
+        # Input to input, output to output, and self to self connections
+        conns = [(0, 1), (3, 2), (5, 5)]
+        for n1, n2 in conns:
+            with self.assertRaises(AssertionError, msg=msg):
+                g.add_connection(n1, n2)
 
     def test_add_node(self):
         g = Genome(1, 1)
@@ -155,6 +168,11 @@ class TestGenome(unittest.TestCase):
         x = np.array([0.5, 0.5])
 
         msg = 'Invalid genome output!'
+
+        # No connections
+        y = g(x)
+        self.assertEqual(y[0], 0.0, msg=msg)
+        self.assertEqual(y[1], 0.0, msg=msg)
 
         # No hidden nodes, modified sigmoid activation
         g.add_connection(0, 2, weight=-0.7)

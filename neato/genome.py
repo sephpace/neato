@@ -97,37 +97,42 @@ class Genome:
                 if conn is not None and conn.expressed:
                     self.weights[i, in_node.id] = conn.weight
 
-    def add_connection(self, node1, node2, weight=None):
+    def add_connection(self, nid1, nid2, weight=None):
         """
-        Adds a connection between node1 and node2.
+        Adds a connection between the nodes with the given ids.
 
         Args:
-            node1 (int):    The id of the first node.
-            node2 (int):    The id of the second node.
+            nid1 (int):    The id of the first node.
+            nid2 (int):    The id of the second node.
             weight (float): The weight of the connection.
         """
+        # Get the nodes
+        node1 = self.get_node(nid1)
+        node2 = self.get_node(nid2)
+
+        # Make sure the nodes exist
+        assert node1 is not None, f'Node {nid1} does not exist within genome!'
+        assert node2 is not None, f'Node {nid2} does not exist within genome!'
+
         # Make sure the connection does not already exist within the genome
         for c in self.__connections:
-            assert not (c.in_node == node1 and c.out_node == node2), 'Connection already exists within genome!'
-
-        # Get the types of the nodes
-        node1_type = self.get_node(node1).type
-        node2_type = self.get_node(node2).type
+            assert not (c.in_node == nid1 and c.out_node == nid2), 'Connection already exists within genome!'
 
         # Make sure the connection is valid
-        if node1_type != 'hidden':
-            assert node1_type != node2_type, f'Invalid connection! {node1_type} -> {node2_type}'
+        assert nid1 != nid2, f'Invalid connection! Cannot connect node to self!'
+        if node1.type != 'hidden':
+            assert node1.type != node2.type, f'Invalid connection! {node1.type} -> {node2.type}'
 
         # Check if the order of the nodes should be reversed
-        reverse = (node1_type == 'hidden' and node2_type == 'input') or (node1_type == 'output' and node2_type == 'hidden') or (node1_type == 'output' and node2_type == 'input')
+        reverse = (node1.type == 'hidden' and node2.type == 'input') or (node1.type == 'output' and node2.type == 'hidden') or (node1.type == 'output' and node2.type == 'input')
 
         # Create the connection and add it to the genome
         if reverse:
-            inn_num = self.get_innovation_number(node2, node1)
-            conn = Connection(inn_num, node2, node1, weight=weight)
+            inn_num = self.get_innovation_number(nid2, nid1)
+            conn = Connection(inn_num, nid2, nid1, weight=weight)
         else:
-            inn_num = self.get_innovation_number(node1, node2)
-            conn = Connection(inn_num, node1, node2, weight=weight)
+            inn_num = self.get_innovation_number(nid1, nid2)
+            conn = Connection(inn_num, nid1, nid2, weight=weight)
 
         # Add the connection to the genome and compile weights
         self.__connections.append(conn)
@@ -209,7 +214,8 @@ class Genome:
         y = np.pad(x, (0, len(self.__nodes) - len(x)))
         for nid, w in zip(self.__order, self.weights):
             node = self.get_node(nid)
-            y[nid] = node.activation(y[nid] + y.dot(w))
+            y[nid] += y.dot(w)
+            y[nid] = node.activation(y[nid]) if w.any() else y[nid]
         input_size, output_size = self.shape
         y = y[input_size:input_size + output_size]
         return y
