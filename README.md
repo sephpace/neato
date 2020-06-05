@@ -1,0 +1,260 @@
+# Neato
+
+Neato is an implementation of NEAT ([Neuro-Evolution of Augmenting Topologies](http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf)).
+It can be used to evolve simple neural networks to accomplish a specific task.
+
+## Contents
+
+- [Installation](#installation)
+- [Getting Started](#getting-started)
+  - [Genome](#genome)
+  - [Ecosystem](#ecosystem)
+- [Examples](#examples)
+
+<a name="installation"></a>
+## Installation
+ 
+ Neato is installed using pip on the command line.
+ 
+ ```commandline
+pip install neato
+```
+
+<a name="getting-started"></a>
+## Getting Started
+
+<a name="genome"></a>
+### Genome
+
+Genomes are the evolvable neural networks that are the base of the NEAT algorithm. 
+Each genome has three types of nodes: input, output, and hidden, and any number of
+connections between them. A genome starts out with only input and output nodes with 
+no connections.
+
+```python
+from neato import Genome
+
+genome = Genome(2, 3)  # 2 input nodes and 3 output nodes
+```
+
+Once created, genomes can be passed numpy arrays to be evaluated by the network.
+
+```python
+import numpy as np
+
+x = np.array([0.5, 0.7])
+y = genome(x)
+print(y)
+```
+```
+Out: [0. 0. 0.]
+```
+
+Since there are no connections, the output is all zeros. You can add connections 
+manually or randomly through mutations. Once there are connections, the outputs
+are actual, non-zero values.
+
+```python
+genome.add_connection(0, 2)     # Connect node 0 to node 2
+genome.add_connection(1, 4)     # Connect node 1 to node 4
+genome.mutate_add_connection()  # Connect two random nodes
+
+y = genome(x)
+print(y)
+```
+```
+Out: [0.04911261 0.         0.34208322]
+```
+
+Nodes are numbered starting at 0 in the order that they are added to the genome.
+Since there are two inputs, 0 and 1 are inputs nodes and since there are three outputs,
+2, 3, and 4 are output nodes. Hidden nodes can be added to the genome in the following
+manner:
+
+```python
+genome.add_node(0)        # Add node on connection 0
+genome.add_node(4)        # Add node on connection 4
+genome.mutate_add_node()  # Add a node on a random connection
+
+y = genome(x)
+print(y)
+```
+```
+Out: [0.01854924 0.         0.34208322]
+```
+
+Connections can now be added between the newly created nodes as shown below:
+
+```python
+genome.add_connection(5, 6) # Connect hidden node 5 to hidden node 6
+
+y = genome(x)
+print(y)
+```
+```
+Out: [0.01498559 0.         0.34208322]
+```
+
+Genomes can be evaluated as strings to see all nodes and connections.
+
+```python
+print(genome)
+```
+```
+Out: 
+```
+
+<a name="ecosystem"></a>
+### Ecosystem
+
+An ecosystem is an environment that contains a population of genomes and 
+manages them from generation to generation. Genomes within the ecosystem
+die, reproduce, mutate, and evolve.
+
+```python
+from neato import Ecosystem
+
+ecosystem = Ecosystem()
+```
+
+Once an ecosystem has been created, it need to be populated with genomes.
+
+```python
+# Population size: 100 | The amount of genomes in the ecosystem
+# Input size:      2   | The amount of input nodes for each genome
+# Output size:     3   | The amount of output nodes for each genome
+
+ecosystem.create_initial_population(100, input_size=2, output_size=3)
+```
+
+A population size will always remain constant because any genomes that are killed are
+replaced by new genomes. Genomes in a given ecosystem will always have the same amount of input and output 
+nodes, but hidden nodes and connections will vary from genome to genome.
+
+Another way to create a population is to supply a parent genome:
+
+```python
+from neato import Genome
+
+genome = Genome(2, 3)
+ecosystem.create_initial_population(100, parent_genome=genome)
+```
+
+If a parent genome is given instead of input and output sizes, all genomes will be based on
+the parent. They will have the same amount of inputs and outputs as the parent but will be mutated
+slightly. Optionally, mutations can be bypassed by setting mutate to False as follows:
+
+```python
+from neato import Genome
+
+genome = Genome(2, 3)
+ecosystem.create_initial_population(100, parent_genome=genome, mutate=False)
+```
+
+If an ecosystem is populated in this way, all genomes will be exact copies of the
+parent genome.
+
+Once an population has been created, each genome can be evaluated and have a fitness 
+value applied. Since each problem to be solved by NEAT is different, the fitness
+values must be applied manually by the user.
+
+```python
+import random
+
+for genome in ecosystem.get_population():
+    x = np.array([0.5, 0.5])
+    y = genome(x)
+    genome.fitness = random.randrange(0, 100)  # Set fitness to random value
+```
+
+The fitness was applied randomly above, but it should be set as meaningful values
+depending on the desired result.
+
+Once fitness values have been assigned, the ecosystem can move on to the next
+generation. Genomes with lower fitness values will be killed, and the survivors
+will reproduce to fill in their places. Mutations will be applied to the children
+in a similar manner to when the inital population was created.
+
+```python
+ecosystem.next_generation()
+```
+
+The percentage of genomes that are killed with each generation can be adjusted with
+the kill_percentage parameter.
+
+```python
+# Only kill 20% each generation
+# Default is 50%
+ecosystem.next_generation(kill_percentage=20)
+```
+
+Optionally, a parent genome can be specified which will cause the ecosystem to base
+the next generation upon. In this case, no other genomes will be crossed, but copies
+of the parent will be mutated.
+
+```python
+# Get the genome with the highest fitness value
+best_genome = ecosystem.get_best_genome()
+
+# Base the next generation on this genome
+ecosystem.next_generation(parent_genome=best_genome)
+```
+
+This process repeats for as long as required. The user determines how many generations
+to reach or to what fitness value must be achieved in order to stop.
+
+<a name="examples"></a>
+## Examples
+
+The following example shows how Neato can be used to solve a simple [Gym](https://gym.openai.com/) 
+environment called CartPole. In this environment, a pole is attached to a cart
+and the agent must move the cart back and forth to balance it.
+
+```python
+import gym
+
+from neato import Ecosystem
+
+POPULATION = 100
+GENERATIONS = 10
+
+# Set up environment
+env = gym.make('CartPole-v1')
+
+# Set up ecosystem
+ecosystem = Ecosystem()
+ecosystem.create_initial_population(POPULATION, input_size=4, output_size=2)
+
+# Start the evolution
+for generation in range(GENERATIONS):
+    for genome in ecosystem.get_population():
+        # Get the initial input from the environment        
+        observation = env.reset()
+        
+        # Evaluate the genome until it is done
+        # When it is done is determined by the environment
+        done = False
+        while not done:
+            # Render the environment
+            env.render()
+    
+            # Evaluate genome for given timestep
+            action = genome(observation).argmax()
+
+            # Evaluate reward and get next input
+            observation, reward, done, info = env.step(action)
+    
+            # Apply the fitness to the genome
+            genome.fitness += reward   
+
+    # Display ecosystem info
+    print(ecosystem)
+
+    # Kill less fit genomes and cross fitter genomes
+    ecosystem.next_generation()
+
+# Close the environment
+env.close()
+```
+
+For this and more examples, see the [examples](https://github.com/neato/neato/tree/master/examples) directory.
