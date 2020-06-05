@@ -1,6 +1,6 @@
 # Neato
 
-Neato is an implementation of NEAT ([Neuro-Evolution of Augmenting Topologies](http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf)).
+Neato is an implementation of NEAT ([NeuroEvolution of Augmenting Topologies](http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf)).
 It can be used to evolve simple neural networks to accomplish a specific task.
 
 ## Contents
@@ -257,4 +257,4 @@ for generation in range(GENERATIONS):
 env.close()
 ```
 
-For this and more examples, see the [examples](https://github.com/neato/neato/tree/master/examples) directory.
+For this and more examples, see the [examples](https://github.com/sephpace/neato/tree/master/examples) directory.
