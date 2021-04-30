@@ -1,0 +1,13 @@
+LICENSE
+README.md
+pyproject.toml
+setup.cfg
+src/neato/__init__.py
+src/neato/activations.py
+src/neato/ecosystem.py
+src/neato/genome.py
+src/neato.egg-info/PKG-INFO
+src/neato.egg-info/SOURCES.txt
+src/neato.egg-info/dependency_links.txt
+src/neato.egg-info/requires.txt
+src/neato.egg-info/top_level.txt
